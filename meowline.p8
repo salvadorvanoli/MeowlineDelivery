@@ -63,6 +63,35 @@ function check_map_collision(x, y, w, h)
     return false
 end
 
+function check_player_on_roomba()
+    -- Verificar si el jugador estれく sobre o cerca de la roomba
+    if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4 and -- Permitir un rango de 4 pれとxeles
+       player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
+       player.dy >= 0 then -- Solo si el jugador estれく cayendo o estれくtico
+        return true
+    end
+    return false
+end
+
+function check_player_roomba_side_collision()
+    -- Verificar si hay colisiれはn lateral (no desde arriba)
+    if player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
+       player.y + player.h > roomba.y and player.y < roomba.y + roomba.h and
+       not check_player_on_roomba() then -- Solo si NO estれく encima
+        return true
+    end
+    return false
+end
+
+function reset_player_position()
+    -- Reiniciar la posiciれはn del jugador a la posiciれはn inicial
+    player.x = 64
+    player.y = 80
+    player.dx = 0
+    player.dy = 0
+    player.grounded = false
+end
+
 -->8
 -- funciones para dibujar y update
 -- funcion para actualizar el enemigo
@@ -116,8 +145,11 @@ function _draw()
         rectfill(p.x, p.y, p.x + p.w, p.y + p.h, 6)
     end
 
-    -- Dibuja el area de colision
-    -- rect(player.x, player.y + player.h, player.x + player.w, player.y + player.h + 1, 8)
+    -- Dibuja el れくrea de colisiれはn de la roomba
+    rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
+
+    -- Dibuja el れくrea de colisiれはn del jugador
+    rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
 
     draw_roomba()
 end
@@ -129,7 +161,7 @@ end
 
 -- funcion para actualizar
 function _update()
-    -- movimiento horizontal
+    -- Movimiento del jugador
     if btn(0) then -- izquierda
         player.dx = -move_speed
         player.der = false
@@ -140,33 +172,49 @@ function _update()
         player.dx = 0
     end
 
-    -- salto
+    -- Salto
     if btnp(4) and player.grounded then
         player.dy = jump_power
         player.grounded = false
     end
 
-    -- aplicar gravedad
+    -- Aplicar gravedad
     player.dy += gravity
 
-    -- actualizar posicion
+    -- Actualizar posiciれはn horizontal
     player.x += player.dx
-    player.y += player.dy
 
-    -- verificar colision con el suelo
-    player.grounded = false
-    local collided, ground_y = check_map_collision(player.x, player.y + player.h, player.w, 1)
-    if collided and player.dy >= 0 then
-        player.y = ground_y - player.h -- ajusta la posicion del jugador
-        player.dy = 0
+    -- PRIMERO: Verificar si el jugador estれく sobre la roomba (ANTES de actualizar Y)
+    if check_player_on_roomba() then
         player.grounded = true
+        player.y = roomba.y - player.h -- Ajustar la posiciれはn del jugador
+        player.dy = 0 -- IMPORTANTE: Resetear la velocidad vertical
+        player.x += roomba.dx -- Mover al jugador con la roomba
+    else
+        -- Actualizar posiciれはn vertical solo si no estれく sobre la roomba
+        player.y += player.dy
+        
+        -- Verificar colisiれはn con el suelo
+        player.grounded = false
+        local collided, ground_y = check_map_collision(player.x, player.y + player.h, player.w, 1)
+        if collided and player.dy >= 0 then
+            player.y = ground_y - player.h -- Ajusta la posiciれはn del jugador
+            player.dy = 0
+            player.grounded = true
+        end
     end
 
-    -- evitar salir de los limites del mapa
+    -- Verificar colisiれはn lateral con la roomba (despuれたs de todo lo demれくs)
+    if check_player_roomba_side_collision() then
+        reset_player_position()
+    end
+
+    -- Evitar salir de los lれとmites del mapa
     if player.x < 0 then player.x = 0 end
     if player.x + player.w > 1024 then player.x = 1024 - player.w end
     if player.y > 256 then player.y = 256 end
 
+    -- Actualizar roomba
     update_roomba()
 end
 __gfx__
