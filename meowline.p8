@@ -2,7 +2,10 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- variables
--- Actualiza la posicion inicial del jugador para que estれた cerca del suelo
+
+-- Activar modo debugging (se ven las hitboxes)
+debugging = false;
+
 player = {
     x = 64,
     y = 80,
@@ -16,22 +19,17 @@ player = {
 
 -- enemigo
 roomba = {
-				x = 32,
-				y = 88,
-				dx = 1,
-				w = 16,
-				h = 8
+    x = 32,
+    y = 88,
+    dx = 1,
+    w = 16,
+    h = 8
 }
 
--- gravedad y velocidad
+-- variables de movimiento
 gravity = 0.3
 jump_power = -5
 move_speed = 2
-
--- plataformas
-platforms = {
---    {x = 0, y = 96, w = 1020, h = 8}, -- plataforma larga
-}
 
 -- Indice del sprite solido (suelo)
 solid_sprite = 64
@@ -52,8 +50,6 @@ function check_map_collision(x, y, w, h)
     -- Iterar sobre las celdas del mapa
     for cx = start_cx, end_cx do
         for cy = start_cy, end_cy do
-            -- Debug: imprime informacion sobre las celdas que compruebas
-            -- print("Checking cell: "..cx..","..cy.." = "..mget(cx,cy))
             if mget(cx, cy) == solid_sprite then
                 return true, cy * 8
             end
@@ -64,27 +60,27 @@ function check_map_collision(x, y, w, h)
 end
 
 function check_player_on_roomba()
-    -- Verificar si el jugador estれく sobre o cerca de la roomba
-    if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4 and -- Permitir un rango de 4 pれとxeles
+    -- Verificar si el jugador está sobre o cerca de la roomba
+    if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4 and -- Permitir un rango de 4 pixeles
        player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
-       player.dy >= 0 then -- Solo si el jugador estれく cayendo o estれくtico
+       player.dy >= 0 then -- Solo si el jugador está cayendo o estático
         return true
     end
     return false
 end
 
 function check_player_roomba_side_collision()
-    -- Verificar si hay colisiれはn lateral (no desde arriba)
+
     if player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
        player.y + player.h > roomba.y and player.y < roomba.y + roomba.h and
-       not check_player_on_roomba() then -- Solo si NO estれく encima
+       not check_player_on_roomba() then
         return true
     end
+
     return false
 end
 
 function reset_player_position()
-    -- Reiniciar la posiciれはn del jugador a la posiciれはn inicial
     player.x = 64
     player.y = 80
     player.dx = 0
@@ -94,19 +90,20 @@ end
 
 -->8
 -- funciones para dibujar y update
+
 -- funcion para actualizar el enemigo
 function update_roomba()
-    -- aplicar movimiento horizontal
-    roomba.x += roomba.dx
 
-    -- verificar colision con el suelo
+    roomba.x += roomba.dx
     roomba.grounded = false
+
     local collided, ground_y = check_map_collision(roomba.x, roomba.y + roomba.h, roomba.w, 1)
+
     if collided then
-        roomba.y = ground_y - roomba.h -- ajusta la posicion para que quede justo encima del suelo
+        roomba.y = ground_y - roomba.h
         roomba.grounded = true
     else
-        -- aplicar gravedad si no estれく en el suelo
+        -- aplicar gravedad si no está en el suelo
         roomba.y += gravity
     end
 
@@ -120,7 +117,7 @@ function update_roomba()
     local below_front_y = roomba.y + roomba.h + 1 -- justo debajo del borde frontal
     local below_front_collided = check_map_collision(below_front_x, below_front_y, 1, 1)
 
-    -- cambiar de direccion si hay un obstれくculo o no hay suelo delante
+    -- cambiar de direccion si hay un obstáculo o no hay suelo delante
     if front_collided or not below_front_collided then
         roomba.dx = -roomba.dx
     end
@@ -129,27 +126,22 @@ end
 function _draw()
     cls()
 
-    -- dibujar el mapa
     map(0, 0, 0, 0, 128, 128)
 
     -- centrar la camara en el jugador
-    local cam_x = mid(0, player.x - 64, 1024 - 128) -- ajustar lれとmites del mapa
+    local cam_x = mid(0, player.x - 64, 1024 - 128) -- ajustar limites del mapa
     local cam_y = mid(0, player.y - 64, 256 - 128)
     camera(cam_x, cam_y)
 
-    -- dibujar jugador (sprite del gato)
     spr(0, player.x, player.y, 2, 2, player.der) -- usa el sprite 0, tamaれねo 2x2
 
-    -- dibujar plataformas
-    for p in all(platforms) do
-        rectfill(p.x, p.y, p.x + p.w, p.y + p.h, 6)
+    if debugging then
+        -- Dibuja el área de colision de la roomba
+        rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
+
+        -- Dibuja el área de colision del jugador
+        rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
     end
-
-    -- Dibuja el れくrea de colisiれはn de la roomba
-    rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
-
-    -- Dibuja el れくrea de colisiれはn del jugador
-    rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
 
     draw_roomba()
 end
@@ -181,35 +173,33 @@ function _update()
     -- Aplicar gravedad
     player.dy += gravity
 
-    -- Actualizar posiciれはn horizontal
+    -- Actualizar posicion horizontal
     player.x += player.dx
 
-    -- PRIMERO: Verificar si el jugador estれく sobre la roomba (ANTES de actualizar Y)
     if check_player_on_roomba() then
         player.grounded = true
-        player.y = roomba.y - player.h -- Ajustar la posiciれはn del jugador
+        player.y = roomba.y - player.h -- Ajustar la posicion del jugador
         player.dy = 0 -- IMPORTANTE: Resetear la velocidad vertical
         player.x += roomba.dx -- Mover al jugador con la roomba
     else
-        -- Actualizar posiciれはn vertical solo si no estれく sobre la roomba
+        -- Actualizar posicion vertical solo si no está sobre la roomba
         player.y += player.dy
-        
-        -- Verificar colisiれはn con el suelo
+
         player.grounded = false
         local collided, ground_y = check_map_collision(player.x, player.y + player.h, player.w, 1)
         if collided and player.dy >= 0 then
-            player.y = ground_y - player.h -- Ajusta la posiciれはn del jugador
+            player.y = ground_y - player.h -- Ajusta la posicion del jugador
             player.dy = 0
             player.grounded = true
         end
     end
 
-    -- Verificar colisiれはn lateral con la roomba (despuれたs de todo lo demれくs)
+    -- Verificar colision lateral con la roomba (despues de todo lo demás)
     if check_player_roomba_side_collision() then
         reset_player_position()
     end
 
-    -- Evitar salir de los lれとmites del mapa
+    -- Evitar salir de los limites del mapa
     if player.x < 0 then player.x = 0 end
     if player.x + player.w > 1024 then player.x = 1024 - player.w end
     if player.y > 256 then player.y = 256 end
