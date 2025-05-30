@@ -17,14 +17,12 @@ player = {
     der = true
 }
 
--- enemigo
-roomba = {
-    x = 32,
-    y = 88,
-    dx = 1,
-    w = 16,
-    h = 8
-}
+-- enemigos roombas
+roombas = {}
+roomba_move_speed = 1
+
+-- sprite que se convierte en roomba en el mapa
+roomba_spawn_sprite = 144
 
 -- variables de movimiento
 gravity = 0.3
@@ -35,9 +33,11 @@ move_speed = 2
 solid_sprite = 64
 
 -->8
+-- funciones de colisiones
+
 -- funcion para verificar colision con el mapa
 function check_map_collision(x, y, w, h)
-    -- Asegurate de que los valores sean numeros
+
     x = flr(x)
     y = flr(y)
     
@@ -60,21 +60,27 @@ function check_map_collision(x, y, w, h)
 end
 
 function check_player_on_roomba()
-    -- Verificar si el jugador está sobre o cerca de la roomba
-    if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4 and -- Permitir un rango de 4 pixeles
-       player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
-       player.dy >= 0 then -- Solo si el jugador está cayendo o estático
-        return true
+    for roomba in all(roombas) do
+        if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4 and -- Permitir un rango de 4 pixeles
+           player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
+           player.dy >= 0 then -- Solo si el jugador está cayendo o estático
+            return true, roomba -- devolver también la roomba para uso posterior
+        end
     end
+    
     return false
 end
 
 function check_player_roomba_side_collision()
+    for roomba in all(roombas) do
+        if player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
+           player.y + player.h > roomba.y and player.y < roomba.y + roomba.h then
 
-    if player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
-       player.y + player.h > roomba.y and player.y < roomba.y + roomba.h and
-       not check_player_on_roomba() then
-        return true
+            local on_roomba, _ = check_player_on_roomba()
+            if not on_roomba then
+                return true
+            end
+        end
     end
 
     return false
@@ -91,35 +97,68 @@ end
 -->8
 -- funciones para dibujar y update
 
--- funcion para actualizar el enemigo
-function update_roomba()
+-- funcion de inicializacion de todos los enemigos
+function _init()
+    spawn_enemies_from_map()
+end
 
-    roomba.x += roomba.dx
-    roomba.grounded = false
-
-    local collided, ground_y = check_map_collision(roomba.x, roomba.y + roomba.h, roomba.w, 1)
-
-    if collided then
-        roomba.y = ground_y - roomba.h
-        roomba.grounded = true
-    else
-        -- aplicar gravedad si no está en el suelo
-        roomba.y += gravity
+-- funcion para escanear el mapa y crear enemigos (por ahora solo roombas)
+function spawn_enemies_from_map()
+    roombas = {} -- limpiar array existente
+    
+    -- escanear todo el mapa
+    for mx = 0, 127 do
+        for my = 0, 31 do
+            if mget(mx, my) == roomba_spawn_sprite then
+                -- crear nueva roomba en esta posicion
+                local new_roomba = {
+                    x = mx * 8,
+                    y = my * 8,
+                    dx = velocidad_roomba,
+                    w = 16,
+                    h = 8,
+                    grounded = false
+                }
+                
+                add(roombas, new_roomba)
+                
+                -- limpiar el sprite del mapa
+                mset(mx, my, 0)
+            end
+        end
     end
+end
 
-    -- verificar colision frente al enemigo
-    local front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
-    local front_y = roomba.y + roomba.h - 1 -- posicion en el borde inferior del enemigo
-    local front_collided = check_map_collision(front_x, front_y, 1, 1)
+-- funcion para actualizar las roombas
+function update_roombas()
+    for roomba in all(roombas) do
+        roomba.x += roomba.dx
+        roomba.grounded = false
 
-    -- verificar si hay suelo delante
-    local below_front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
-    local below_front_y = roomba.y + roomba.h + 1 -- justo debajo del borde frontal
-    local below_front_collided = check_map_collision(below_front_x, below_front_y, 1, 1)
+        local collided, ground_y = check_map_collision(roomba.x, roomba.y + roomba.h, roomba.w, 1)
 
-    -- cambiar de direccion si hay un obstáculo o no hay suelo delante
-    if front_collided or not below_front_collided then
-        roomba.dx = -roomba.dx
+        if collided then
+            roomba.y = ground_y - roomba.h
+            roomba.grounded = true
+        else
+            -- aplicar gravedad si no está en el suelo
+            roomba.y += gravity
+        end
+
+        -- verificar colision frente al enemigo
+        local front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
+        local front_y = roomba.y + roomba.h - 1 -- posicion en el borde inferior del enemigo
+        local front_collided = check_map_collision(front_x, front_y, 1, 1)
+
+        -- verificar si hay suelo delante
+        local below_front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
+        local below_front_y = roomba.y + roomba.h + 1 -- justo debajo del borde frontal
+        local below_front_collided = check_map_collision(below_front_x, below_front_y, 1, 1)
+
+        -- cambiar de direccion si hay un obstáculo o no hay suelo delante
+        if front_collided or not below_front_collided then
+            roomba.dx = -roomba.dx
+        end
     end
 end
 
@@ -129,26 +168,30 @@ function _draw()
     map(0, 0, 0, 0, 128, 128)
 
     -- centrar la camara en el jugador
-    local cam_x = mid(0, player.x - 64, 1024 - 128) -- ajustar limites del mapa
+    local cam_x = mid(0, player.x - 64, 1024 - 128)
     local cam_y = mid(0, player.y - 64, 256 - 128)
     camera(cam_x, cam_y)
 
-    spr(0, player.x, player.y, 2, 2, player.der) -- usa el sprite 0, tamaれねo 2x2
+    spr(0, player.x, player.y, 2, 2, player.der)
 
     if debugging then
-        -- Dibuja el área de colision de la roomba
-        rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
+        -- Dibuja el área de colision de todas las roombas
+        for roomba in all(roombas) do
+            rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
+        end
 
         -- Dibuja el área de colision del jugador
         rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
     end
 
-    draw_roomba()
+    draw_roombas()
 end
 
--- funcion para dibujar el enemigo
-function draw_roomba()
-    spr(144, roomba.x, roomba.y, 2, 1) -- usa el sprite 80, tamaれねo 2x2
+-- funcion para dibujar todos los enemigos
+function draw_roombas()
+    for roomba in all(roombas) do
+        spr(144, roomba.x, roomba.y, 2, 1)
+    end
 end
 
 -- funcion para actualizar
@@ -176,25 +219,26 @@ function _update()
     -- Actualizar posicion horizontal
     player.x += player.dx
 
-    if check_player_on_roomba() then
+    local on_roomba, current_roomba = check_player_on_roomba()
+    if on_roomba then
         player.grounded = true
-        player.y = roomba.y - player.h -- Ajustar la posicion del jugador
-        player.dy = 0 -- IMPORTANTE: Resetear la velocidad vertical
-        player.x += roomba.dx -- Mover al jugador con la roomba
+        player.y = current_roomba.y - player.h
+        player.dy = 0
+        player.x += current_roomba.dx -- Mover al jugador con la roomba
     else
-        -- Actualizar posicion vertical solo si no está sobre la roomba
+
         player.y += player.dy
 
         player.grounded = false
         local collided, ground_y = check_map_collision(player.x, player.y + player.h, player.w, 1)
         if collided and player.dy >= 0 then
-            player.y = ground_y - player.h -- Ajusta la posicion del jugador
+            player.y = ground_y - player.h
             player.dy = 0
             player.grounded = true
         end
     end
 
-    -- Verificar colision lateral con la roomba (despues de todo lo demás)
+    -- Verificar colision lateral con cualquier roomba (muerte)
     if check_player_roomba_side_collision() then
         reset_player_position()
     end
@@ -204,8 +248,8 @@ function _update()
     if player.x + player.w > 1024 then player.x = 1024 - player.w end
     if player.y > 256 then player.y = 256 end
 
-    -- Actualizar roomba
-    update_roomba()
+    -- Actualizar todas las roombas
+    update_roombas()
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
