@@ -63,8 +63,8 @@ function check_player_on_roomba()
     for roomba in all(roombas) do
         if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4 and -- Permitir un rango de 4 pixeles
            player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
-           player.dy >= 0 then -- Solo si el jugador está cayendo o estático
-            return true, roomba -- devolver también la roomba para uso posterior
+           player.dy >= 0 then -- Solo si el jugador estれく cayendo o estれくtico
+            return true, roomba -- devolver tambiれたn la roomba para uso posterior
         end
     end
     
@@ -114,7 +114,7 @@ function spawn_enemies_from_map()
                 local new_roomba = {
                     x = mx * 8,
                     y = my * 8,
-                    dx = velocidad_roomba,
+                    dx = roomba_move_speed,
                     w = 16,
                     h = 8,
                     grounded = false
@@ -141,7 +141,7 @@ function update_roombas()
             roomba.y = ground_y - roomba.h
             roomba.grounded = true
         else
-            -- aplicar gravedad si no está en el suelo
+            -- aplicar gravedad si no estれく en el suelo
             roomba.y += gravity
         end
 
@@ -155,7 +155,7 @@ function update_roombas()
         local below_front_y = roomba.y + roomba.h + 1 -- justo debajo del borde frontal
         local below_front_collided = check_map_collision(below_front_x, below_front_y, 1, 1)
 
-        -- cambiar de direccion si hay un obstáculo o no hay suelo delante
+        -- cambiar de direccion si hay un obstれくculo o no hay suelo delante
         if front_collided or not below_front_collided then
             roomba.dx = -roomba.dx
         end
@@ -175,12 +175,12 @@ function _draw()
     spr(0, player.x, player.y, 2, 2, player.der)
 
     if debugging then
-        -- Dibuja el área de colision de todas las roombas
+        -- Dibuja el れくrea de colision de todas las roombas
         for roomba in all(roombas) do
             rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
         end
 
-        -- Dibuja el área de colision del jugador
+        -- Dibuja el れくrea de colision del jugador
         rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
     end
 
@@ -344,5 +344,5 @@ __map__
 0000000041414141410000404040400000414141414100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000041414141410000414141410000414141414100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000041414141410000414141410000414141414100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000041414141410000414141410000414141414100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+9000000041414141419000414141419000414141414100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4040404040404040404040404040404040404040404000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
