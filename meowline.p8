@@ -22,14 +22,15 @@ player = {
     lives = 7
 }
 
--- enemigos roombas
+-- Enemigos roombas
 roombas = {}
 roomba_move_speed = 1
 
--- sprite que se convierte en roomba en el mapa
+-- Sprite que se convierte en roomba en el mapa
 roomba_spawn_sprite = 32
+initial_roomba_positions = {}
 
--- variables de movimiento
+-- Variables de movimiento
 gravity = 0.3
 jump_power = -5
 move_speed = 2
@@ -40,7 +41,7 @@ solid_sprites = { 66 } -- Bloques totalmente solidos (desde todos los lados)
 damage_sprites = { 67 } -- Bloques que danan al jugador
 
 -->8
--- funciones de colisiones
+-- Funciones de colisiones
 
 -- Funcion para verificar si un sprite es una plataforma
 function is_platform_sprite(sprite_id)
@@ -228,37 +229,40 @@ function reset_player_position()
 end
 
 -->8
--- funciones para dibujar y update
+-- Funciones para dibujar y update
 
--- funcion de inicializacion de todos los enemigos
+-- Funcion de inicializacion de todos los enemigos
 function _init()
     spawn_enemies_from_map()
 end
 
--- funcion para escanear el mapa y crear enemigos (por ahora solo roombas)
+-- Funcion para escanear el mapa y crear enemigos (por ahora solo roombas)
 function spawn_enemies_from_map()
     roombas = {} -- limpiar array existente
     
-    -- escanear todo el mapa
-    for mx = 0, 127 do
-        for my = 0, 31 do
-            if mget(mx, my) == roomba_spawn_sprite then
-                -- crear nueva roomba en esta posicion
-                local new_roomba = {
-                    x = mx * 8,
-                    y = my * 8,
-                    dx = roomba_move_speed,
-                    w = 16,
-                    h = 8,
-                    grounded = false
-                }
-                
-                add(roombas, new_roomba)
-                
-                -- limpiar el sprite del mapa
-                mset(mx, my, 0)
+    -- Si es la primera vez, escanear el mapa y guardar posiciones
+    if #initial_roomba_positions == 0 then
+        for mx = 0, 127 do
+            for my = 0, 31 do
+                if mget(mx, my) == roomba_spawn_sprite then
+                    add(initial_roomba_positions, {x = mx * 8, y = my * 8})
+                    mset(mx, my, 0) -- Eliminar del mapa solo la primera vez
+                end
             end
         end
+    end
+
+    -- Crear roombas desde las posiciones guardadas
+    for pos in all(initial_roomba_positions) do
+        local new_roomba = {
+            x = pos.x,
+            y = pos.y,
+            dx = roomba_move_speed,
+            w = 16,
+            h = 8,
+            grounded = false
+        }
+        add(roombas, new_roomba)
     end
 end
 
@@ -346,21 +350,16 @@ function _draw()
         -- Dibuja las vidas del jugador
         spr(98, cam_x + 2 + (i - 1) * 10, cam_y + 2, 1, 1)
     end
-
-    if player.lives <= 0 then
-        print("game over", cam_x + 40, cam_y + 60, 8)
-        print("press any key to restart", cam_x + 20, cam_y + 70, 7)
-    end
 end
 
--- funcion para dibujar todos los enemigos
+-- Funcion para dibujar todos los enemigos
 function draw_roombas()
     for roomba in all(roombas) do
         spr(32, roomba.x, roomba.y, 2, 1)
     end
 end
 
--- funcion para actualizar
+-- Funcion para actualizar
 function _update()
     -- Movimiento del jugador
     if btn(0) then -- izquierda
