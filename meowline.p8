@@ -23,12 +23,13 @@ player = {
 }
 
 -- Estados del juego
-game_state = "menu" -- Estados: "menu", "playing", "game_over"
+game_state = "menu" -- Estados: "menu", "playing", "game_over", "victory"
 
--- Coordenadas de las zonas (convertidas de bloques a pれとxeles)
-menu_zone = {x = 1, y = 448} -- {x=7, y=57} en bloques
-game_over_zone = {x = 192, y = 448} -- {x=23, y=57} en bloques  
-game_start_zone = {x = 64, y = 80} -- {x=7, y=11} en bloques
+-- Coordenadas de las zonas
+menu_zone = {x = 1, y = 448}
+game_over_zone = {x = 192, y = 448} 
+game_start_zone = {x = 64, y = 80}
+victory_zone = {x = 320, y = 448}
 
 -- Enemigos roombas
 roombas = {}
@@ -61,6 +62,14 @@ checkpoint_animation = {
     timer = 0,
     speed = 15
 }
+
+-- Sistema de paquetes y victoria
+doors = {}
+door_sprite = 100  -- Sprite de puerta (parte inferior)
+door_top_sprite = 84  -- Sprite de puerta (parte superior)
+delivered_sprite = 101  -- Sprite cuando se entrega el paquete
+score = 0  -- Paquetes entregados
+target_score = 0  -- Total de puertas en el mapa
 
 -->8
 -- Funciones de colisiones
@@ -201,6 +210,19 @@ function check_player_over_checkpoint()
     return nil
 end
 
+function check_player_over_door()
+    for door in all(doors) do
+        if not door.delivered and
+           player.x + player.w > door.x and 
+           player.x < door.x + door.w and
+           player.y + player.h > door.y and 
+           player.y < door.y + door.h then
+            return door
+        end
+    end
+    return nil
+end
+
 function check_player_roomba_side_collision()
     for roomba in all(roombas) do
         if player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
@@ -247,6 +269,7 @@ function game_over()
     player.dy = 0
     player.grounded = true
     player.is_walking = false
+    checkpoint_animation.active = false
 end
 
 function manage_damage()
@@ -255,7 +278,7 @@ function manage_damage()
     if player.lives <= 0 then
         game_over()
     else
-        -- Reiniciar en checkpoint si hay uno activo, sino en posiciれはn normal
+        -- Reiniciar en checkpoint si hay uno activo, sino en posicion normal
         if current_checkpoint then
             player.x = current_checkpoint.x
             player.y = current_checkpoint.y - player.h
@@ -269,13 +292,41 @@ function manage_damage()
     end
 end
 
--->8
--- Funciones para dibujar y update
+function victory()
+    -- Ir a la pantalla de victoria
+    game_state = "victory"
+    player.x = victory_zone.x
+    player.y = victory_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
+    checkpoint_animation.active = false
+end
 
--- Funcion de inicializacion de todos los enemigos
+function deliver_package(door)
+    door.delivered = true
+    score += 1
+    
+    -- Cambiar sprite en el mapa (parte inferior)
+    local map_x = door.x / 8
+    local map_y = (door.y + 8) / 8  -- Parte inferior de la puerta
+    mset(map_x, map_y, delivered_sprite)  -- Cambiar sprite 100 a 101
+    
+    -- Verificar victoria
+    if score >= target_score then
+        victory()
+    end
+end
+
+-->8
+-- Funciones para inicializacion del juego
+
+-- Funcion de inicializacion de todos los enemigos, entidades y objetos del mapa
 function _init()
     spawn_enemies_from_map()
     spawn_checkpoints_from_map()
+    spawn_doors_from_map()
 end
 
 -- Funcion para escanear el mapa y crear enemigos (por ahora solo roombas)
@@ -315,7 +366,7 @@ function spawn_checkpoints_from_map()
     for mx = 0, 126 do -- 126 porque el checkpoint es de 2 sprites de ancho
         for my = 0, 31 do
             if mget(mx, my) == checkpoint_sprite then
-                -- Crear nuevo checkpoint en esta posiciれはn
+                -- Crear nuevo checkpoint en esta posicion
                 local new_checkpoint = {
                     x = mx * 8,
                     y = my * 8,
@@ -329,68 +380,41 @@ function spawn_checkpoints_from_map()
     end
 end
 
--- Funcion para actualizar las roombas
-function update_roombas()
-    for roomba in all(roombas) do
-        -- Verificar colision horizontal con bloques solidos
-        local new_x = roomba.x + roomba.dx
-        if check_solid_collision(new_x, roomba.y, roomba.w, roomba.h) then
-            roomba.dx = -roomba.dx  -- Cambiar direccion
-        else
-            roomba.x = new_x  -- Aplicar movimiento
-        end
-
-        roomba.grounded = false
-
-        -- Verificar colision con el suelo
-        local collided, ground_y = check_roomba_ground_collision(roomba.x, roomba.y + roomba.h, roomba.w, 1)
-        if collided then
-            roomba.y = ground_y - roomba.h
-            roomba.grounded = true
-        else
-            -- Aplicar gravedad si no esta en el suelo
-            roomba.y += gravity
-        end
-
-        -- Verificar colision frontal
-        local front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
-        local front_y = roomba.y + roomba.h - 1
-        local front_collided = check_roomba_ground_collision(front_x, front_y, 1, 1) or 
-                             check_solid_collision(front_x, front_y, 1, 1)
-
-        -- Verificar si hay suelo delante
-        local below_front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
-        local below_front_y = roomba.y + roomba.h + 1
-        local below_front_collided = check_roomba_ground_collision(below_front_x, below_front_y, 1, 1)
-
-        -- Cambiar de direccion si hay obstaculo o no hay suelo
-        if front_collided or not below_front_collided then
-            roomba.dx = -roomba.dx
-        end
-    end
-end
-
-function draw_checkpoints()
-    -- Dibujar todos los checkpoints normales
-    for checkpoint in all(checkpoints) do
-        spr(96, checkpoint.x, checkpoint.y, 2, 1)
-    end
+function spawn_doors_from_map()
+    doors = {} -- limpiar array existente
+    target_score = 0  -- resetear contador
     
-    -- Dibujar animaciれはn si estれく activa
-    if checkpoint_animation.active then
-        local anim_sprites = {80, 82}
-        local current_sprite = anim_sprites[checkpoint_animation.frame + 1]
-        spr(current_sprite, checkpoint_animation.x, checkpoint_animation.y, 2, 1)
+    -- Escanear todo el mapa buscando puertas
+    for mx = 0, 126 do
+        for my = 0, 31 do
+            if mget(mx, my) == door_sprite or mget(mx, my) == delivered_sprite then
+                local new_door = {
+                    x = mx * 8,
+                    y = (my - 1) * 8,
+                    w = 8,
+                    h = 16,
+                    delivered = false
+                }
+                add(doors, new_door)
+
+                target_score += 1  -- Contar total de puertas
+            end
+        end
     end
 end
+
+-->8
+-- Funciones de dibujo
 
 function _draw()
     cls()
 
     map(0, 0, 0, 0, 128, 128)
 
-    -- Dibujar checkpoints antes de la cれくmara, ya que sino estos dan la ilusiれはn de moverse
+    -- Dibujar checkpoints y puertas antes de la camara, ya que sino estos dan la ilusion de moverse
     draw_checkpoints()
+    draw_doors()
+    draw_roombas()
 
     local cam_x = mid(0, player.x - 64, 1024 - 128)
     local cam_y = player.y - 64
@@ -426,20 +450,39 @@ function _draw()
         rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
     end
 
-    draw_roombas()
-
     if game_state == "playing" then
-        -- Solo mostrar vidas durante el juego
+        -- Mostrar vidas durante el juego
         for i = 1, player.lives do
             spr(98, cam_x + 2 + (i - 1) * 10, cam_y + 2, 1, 1)
         end
+
+        -- Mostrar puntuacion durante el juego
+        print("packages: " .. score .. "/" .. target_score, cam_x + 2, cam_y + 12, 7)
+
+
+        -- Mostrar indicaciones de interaccion con la tecla "X"
+        local door_below = check_player_over_door()
+        local checkpoint_below = check_player_over_checkpoint()
+        
+        if door_below then
+            print("press x to deliver", cam_x + 30, cam_y + 115, 7)
+        elseif checkpoint_below and not checkpoint_below.activated then
+            print("press x to save", cam_x + 30, cam_y + 115, 7)
+        end
+
     elseif game_state == "menu" then
         -- Texto del menu
         print("press z to start", cam_x + 32, cam_y + 100, 7)
     elseif game_state == "game_over" then
         -- Texto de game over
-        print("press z to restart", cam_x + 28, cam_y + 100, 7)
         print("press x for menu", cam_x + 32, cam_y + 110, 8)
+    elseif game_state == "victory" then
+        -- Textos de victoria
+        print("congratulations on delivering", cam_x + 5, cam_y + 40, 7)
+        print("all packages!", cam_x + 35, cam_y + 50, 7)
+        print("zoo york and its inhabitants", cam_x + 8, cam_y + 70, 7)
+        print("thank you for your contribution!", cam_x + 2, cam_y + 80, 7)
+        print("press x to return to menu", cam_x + 15, cam_y + 110, 8)
     end
 end
 
@@ -450,52 +493,38 @@ function draw_roombas()
     end
 end
 
--- Funcion para actualizar el estado de menu
-function update_menu()
-    -- Posicionar jugador en la zona del menu
-    player.x = menu_zone.x
-    player.y = menu_zone.y
-    player.dx = 0
-    player.dy = 0
-    player.grounded = true
-    player.is_walking = false
+-- Funcion para dibujar los checkpoints y su animacion
+function draw_checkpoints()
+    -- Dibujar todos los checkpoints normales
+    for checkpoint in all(checkpoints) do
+        spr(96, checkpoint.x, checkpoint.y, 2, 1)
+    end
     
-    -- Solo responder al boton de salto para empezar
-    if btnp(4) then -- Z button
-        game_state = "playing"
-        player.x = game_start_zone.x
-        player.y = game_start_zone.y
-        player.lives = 7
-        current_checkpoint = nil
-        spawn_checkpoints_from_map()
+    -- Dibujar animacion si esta activa
+    if checkpoint_animation.active then
+        local anim_sprites = {80, 82}
+        local current_sprite = anim_sprites[checkpoint_animation.frame + 1]
+        spr(current_sprite, checkpoint_animation.x, checkpoint_animation.y, 2, 1)
     end
 end
 
--- Funcion para actualizar el estado de game over
-function update_game_over()
-    -- Mantener al jugador en la zona de game over
-    player.x = game_over_zone.x
-    player.y = game_over_zone.y
-    player.dx = 0
-    player.dy = 0
-    player.grounded = true
-    player.is_walking = false
-    
-    -- Controles para reiniciar o volver al menu
-    if btnp(4) then -- Z - reiniciar juego
-        game_state = "playing"
-        player.lives = 7
-        player.x = game_start_zone.x
-        player.y = game_start_zone.y
-        current_checkpoint = nil
-        spawn_enemies_from_map()
-        spawn_checkpoints_from_map()
-    elseif btnp(5) then -- X - volver al menu
-        game_state = "menu"
-        player.lives = 7
-        roombas = {}
+-- Funcion para dibujar las puertas
+function draw_doors()
+    for door in all(doors) do
+        if not door.delivered then
+            -- Dibujar puerta no entregada (sprites 84 arriba, 100 abajo)
+            spr(84, door.x, door.y, 1, 1)
+            spr(100, door.x, door.y + 8, 1, 1)
+        else
+            -- Dibujar puerta entregada (sprites 84 arriba, 101 abajo)
+            spr(84, door.x, door.y, 1, 1)
+            spr(101, door.x, door.y + 8, 1, 1)
+        end
     end
 end
+
+-->8
+-- Funciones de actualizacion
 
 function _update()
     if game_state == "menu" then
@@ -504,6 +533,8 @@ function _update()
         update_playing()
     elseif game_state == "game_over" then
         update_game_over()
+    elseif game_state == "victory" then
+        update_victory()
     end
 end
 
@@ -538,25 +569,30 @@ function update_playing()
         player.grounded = false
     end
 
-    -- Meterse en la caja del checkpoint
+    -- Revisar interacciones del mapa
     if btnp(5) then -- X button
         local checkpoint_below = check_player_over_checkpoint()
         if checkpoint_below and not checkpoint_below.activated then
-            -- ACTIVAR EL CHECKPOINT (ganar vida y guardar posiciれはn)
+            -- Activar el checkpoint (ganar vida y guardar posicion)
             checkpoint_below.activated = true
             current_checkpoint = checkpoint_below
             player.lives += 1  -- Ganar 1 vida extra
             
-            -- Activar animaciれはn sobre el checkpoint
+            -- Activar animacion sobre el checkpoint
             checkpoint_animation.active = true
             checkpoint_animation.x = checkpoint_below.x
-            checkpoint_animation.y = checkpoint_below.y - 8  -- 8 pれとxeles arriba del checkpoint
+            checkpoint_animation.y = checkpoint_below.y - 8  -- 8 poxeles arriba del checkpoint
             checkpoint_animation.frame = 0
             checkpoint_animation.timer = 0
         end
+
+        local door_below = check_player_over_door()
+        if door_below then
+            deliver_package(door_below)
+        end
     end
 
-    -- Actualizar animaciれはn del checkpoint si estれく activa
+    -- Actualizar animacion del checkpoint si esta activa
     if checkpoint_animation.active then
         checkpoint_animation.timer += 1
         if checkpoint_animation.timer >= checkpoint_animation.speed then
@@ -639,6 +675,101 @@ function update_playing()
 
     -- Actualizar todas las roombas
     update_roombas()
+end
+
+-- Funcion para actualizar las roombas
+function update_roombas()
+    for roomba in all(roombas) do
+        -- Verificar colision horizontal con bloques solidos
+        local new_x = roomba.x + roomba.dx
+        if check_solid_collision(new_x, roomba.y, roomba.w, roomba.h) then
+            roomba.dx = -roomba.dx  -- Cambiar direccion
+        else
+            roomba.x = new_x  -- Aplicar movimiento
+        end
+
+        roomba.grounded = false
+
+        -- Verificar colision con el suelo
+        local collided, ground_y = check_roomba_ground_collision(roomba.x, roomba.y + roomba.h, roomba.w, 1)
+        if collided then
+            roomba.y = ground_y - roomba.h
+            roomba.grounded = true
+        else
+            -- Aplicar gravedad si no esta en el suelo
+            roomba.y += gravity
+        end
+
+        -- Verificar colision frontal
+        local front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
+        local front_y = roomba.y + roomba.h - 1
+        local front_collided = check_roomba_ground_collision(front_x, front_y, 1, 1) or 
+                             check_solid_collision(front_x, front_y, 1, 1)
+
+        -- Verificar si hay suelo delante
+        local below_front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
+        local below_front_y = roomba.y + roomba.h + 1
+        local below_front_collided = check_roomba_ground_collision(below_front_x, below_front_y, 1, 1)
+
+        -- Cambiar de direccion si hay obstaculo o no hay suelo
+        if front_collided or not below_front_collided then
+            roomba.dx = -roomba.dx
+        end
+    end
+end
+
+-- Funcion para actualizar el estado de menu
+function update_menu()
+    -- Posicionar jugador en la zona del menu
+    player.x = menu_zone.x
+    player.y = menu_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
+    
+    -- Solo responder al boton de salto para empezar
+    if btnp(4) then -- Z button
+        game_state = "playing"
+        player.x = game_start_zone.x
+        player.y = game_start_zone.y
+        player.lives = 7
+        current_checkpoint = nil
+        score = 0
+        checkpoint_animation.active = false
+        _init()
+    end
+end
+
+-- Funcion para actualizar el estado de game over
+function update_game_over()
+    -- Mantener al jugador en la zona de game over
+    player.x = game_over_zone.x
+    player.y = game_over_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
+    
+    if btnp(5) then -- X - volver al menu
+        game_state = "menu"
+    end
+end
+
+-- Funcion para actualizar el estado de victoria
+function update_victory()
+    -- Mantener al jugador en la zona de victoria
+    player.x = victory_zone.x
+    player.y = victory_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
+    
+    -- Solo responder al boton X para volver al menu
+    if btnp(5) then
+        game_state = "menu"
+    end
 end
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000
@@ -737,13 +868,13 @@ f0fffff88fffff0f0008800007777770444444444ffff3f400000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14141414141414141414141414141414242424242424242424242424242424240000000000000000000000000000000000000000000000000000000000000000
+14141414141414141414141414141414242424242424242424242424242424241414141414141414141414141414141400000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000
+14000000000000000000000000000014240000000000000000000000000000240000000000071727370000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000
+14000000000000000000000000000014240000000000000000000000000000240000000000000047576700000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 14000000000717273700000000000014240000000007172737000000000000240000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -767,18 +898,18 @@ f0fffff88fffff0f0008800007777770444444444ffff3f400000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14141414141414141414141414141414242424242424242424242424242424240000000000000000000000000000000000000000000000000000000000000000
+14141414141414141414141414141414242424242424242424242424242424241414141414141414141414141414141400000000000000000000000000000000
 __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000200042000000000000000000000000000000600000000000000000000000004242000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4342424242000000000000000000000000000000424200000000000000000000004242000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000040404040400000000000000000004242000000000000000000000000004242000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000041414141410000404040400000420000000000000000000000006000004242000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000041414141410000414141410000000000000000000000000000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000041414141410000404040400000420000000000000000000000006000004242000064000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000041414141410000414141410000000000000000000064000000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000041414141410000414141410000000000000000004242420000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000041414141410000414141410000000000000000000000000000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0020000041414141410000414141410000000000000000000000000000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4040404040404040404343404040404040404040404043434343434343424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
