@@ -34,9 +34,9 @@ jump_power = -5
 move_speed = 2
 
 -- Indice del sprite solido (suelo)
-platform_sprites = { 64 }     -- Bloques de plataforma (solo solidos desde arriba)
-solid_sprites = { 66 }    -- Bloques totalmente solidos (desde todos los lados)
-damage_sprites = { 67 } -- Bloques que daれねan al jugador
+platform_sprites = { 64 } -- Bloques de plataforma (solo solidos desde arriba)
+solid_sprites = { 66 } -- Bloques totalmente solidos (desde todos los lados)
+damage_sprites = { 67 } -- Bloques que danan al jugador
 
 -->8
 -- funciones de colisiones
@@ -61,7 +61,7 @@ function is_solid_sprite(sprite_id)
     return false
 end
 
--- Funcion para verificar si un sprite es un bloque que daれねa al jugador
+-- Funcion para verificar si un sprite es un bloque que dana al jugador
 function is_damage_sprite(sprite_id)
     for damage in all(damage_sprites) do
         if sprite_id == damage then
@@ -93,7 +93,7 @@ function check_solid_collision(x, y, w, h)
     return false
 end
 
--- Funcion para detectar bloques daれねinos
+-- Funcion para detectar bloques daninos
 function check_damage_collision(x, y, w, h)
     x = flr(x)
     y = flr(y)
@@ -128,7 +128,7 @@ function check_platform_collision(x, y, w, h)
     for cx = start_cx, end_cx do
         for cy = start_cy, end_cy do
             local sprite_id = mget(cx, cy)
-            if is_platform_sprite(sprite_id) then -- Cambio aquれと
+            if is_platform_sprite(sprite_id) then -- Cambio aqui
                 return true, cy * 8
             end
         end
@@ -193,7 +193,7 @@ function check_roomba_ground_collision(x, y, w, h)
     for cx = start_cx, end_cx do
         for cy = start_cy, end_cy do
             local sprite_id = mget(cx, cy)
-            -- Las roombas pueden pararse en plataformas, bloques solidos Y bloques daれねinos
+            -- Las roombas pueden pararse en plataformas, bloques solidos Y bloques daninos
             if is_platform_sprite(sprite_id) or is_solid_sprite(sprite_id) or is_damage_sprite(sprite_id) then
                 return true, cy * 8
             end
@@ -259,7 +259,7 @@ function update_roombas()
 
         roomba.grounded = false
 
-        -- Verificar colision con el suelo (USAR LA NUEVA FUNCIれ⧗N PARA ROOMBAS)
+        -- Verificar colision con el suelo
         local collided, ground_y = check_roomba_ground_collision(roomba.x, roomba.y + roomba.h, roomba.w, 1)
         if collided then
             roomba.y = ground_y - roomba.h
@@ -269,13 +269,13 @@ function update_roombas()
             roomba.y += gravity
         end
 
-        -- Verificar colision frontal (TAMBIれ웃N USAR LA NUEVA FUNCIれ⧗N)
+        -- Verificar colision frontal
         local front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
         local front_y = roomba.y + roomba.h - 1
         local front_collided = check_roomba_ground_collision(front_x, front_y, 1, 1) or 
                              check_solid_collision(front_x, front_y, 1, 1)
 
-        -- Verificar si hay suelo delante (TAMBIれ웃N USAR LA NUEVA FUNCIれ⧗N)
+        -- Verificar si hay suelo delante
         local below_front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
         local below_front_y = roomba.y + roomba.h + 1
         local below_front_collided = check_roomba_ground_collision(below_front_x, below_front_y, 1, 1)
@@ -396,7 +396,6 @@ function _update()
             end
         end
     else
-        -- Codigo existente para cuando no esta sobre roomba...
         local new_y = player.y + player.dy
         if check_solid_collision(player.x, new_y, player.w, player.h) then
             if player.dy > 0 then
@@ -424,7 +423,7 @@ function _update()
         end
     end
 
-    -- Verificar colision con bloques que daれねan al jugador
+    -- Verificar colision con bloques que danan al jugador
     if check_damage_collision(player.x, player.y, player.w, player.h) then
         reset_player_position()
     end
@@ -434,7 +433,7 @@ function _update()
         reset_player_position()
     end
 
-    -- Lれとmites del mapa
+    -- Limites del mapa
     if player.x < 0 then player.x = 0 end
     if player.x + player.w > 1024 then player.x = 1024 - player.w end
     if player.y > 256 then player.y = 256 end
