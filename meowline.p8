@@ -22,6 +22,14 @@ player = {
     lives = 7
 }
 
+-- Estados del juego
+game_state = "menu" -- Estados: "menu", "playing", "game_over"
+
+-- Coordenadas de las zonas (convertidas de bloques a píxeles)
+menu_zone = {x = 56, y = 456} -- {x=7, y=57} en bloques
+game_over_zone = {x = 184, y = 456} -- {x=23, y=57} en bloques  
+game_start_zone = {x = 64, y = 80} -- {x=7, y=11} en bloques
+
 -- Enemigos roombas
 roombas = {}
 roomba_move_speed = 1
@@ -206,26 +214,29 @@ function check_roomba_ground_collision(x, y, w, h)
 end
 
 function game_over()
-    if player.lives <= 0 then
-        player.lives = 7
-        player.x = 64
-        player.y = 80
-        player.dx = 0
-        player.dy = 0
-        player.grounded = false
-        spawn_enemies_from_map()
-    end
+    -- Esta función ahora solo maneja la transición al estado de game over
+    game_state = "game_over"
+    player.x = game_over_zone.x
+    player.y = game_over_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
 end
 
 function reset_player_position()
-    player.x = 64
-    player.y = 80
-    player.dx = 0
-    player.dy = 0
-    player.grounded = false
     player.lives -= 1
-
-    game_over()
+    
+    if player.lives <= 0 then
+        game_over()  -- Llamar a la función game_over actualizada
+    else
+        -- Reiniciar posición normal
+        player.x = game_start_zone.x
+        player.y = game_start_zone.y
+        player.dx = 0
+        player.dy = 0
+        player.grounded = false
+    end
 end
 
 -->8
@@ -346,9 +357,19 @@ function _draw()
 
     draw_roombas()
 
-    for i = 1, player.lives do
-        -- Dibuja las vidas del jugador
-        spr(98, cam_x + 2 + (i - 1) * 10, cam_y + 2, 1, 1)
+    -- Reemplaza la parte donde dibujas las vidas por esto:
+    if game_state == "playing" then
+        -- Solo mostrar vidas durante el juego
+        for i = 1, player.lives do
+            spr(98, cam_x + 2 + (i - 1) * 10, cam_y + 2, 1, 1)
+        end
+    elseif game_state == "menu" then
+        -- Texto del menú
+        print("press z to start", cam_x + 30, cam_y + 100, 7)
+    elseif game_state == "game_over" then
+        -- Texto de game over
+        print("press z to restart", cam_x + 25, cam_y + 100, 7)
+        print("press x for menu", cam_x + 28, cam_y + 110, 8)
     end
 end
 
@@ -359,8 +380,61 @@ function draw_roombas()
     end
 end
 
--- Funcion para actualizar
+-- Funcion para actualizar el estado de menu
+function update_menu()
+    -- Posicionar jugador en la zona del menú
+    player.x = menu_zone.x
+    player.y = menu_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
+    
+    -- Solo responder al botón de salto para empezar
+    if btnp(4) then -- Z button
+        game_state = "playing"
+        player.x = game_start_zone.x
+        player.y = game_start_zone.y
+        player.lives = 7
+    end
+end
+
+-- Funcion para actualizar el estado de game over
+function update_game_over()
+    -- Mantener al jugador en la zona de game over
+    player.x = game_over_zone.x
+    player.y = game_over_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
+    
+    -- Controles para reiniciar o volver al menú
+    if btnp(4) then -- Z - reiniciar juego
+        game_state = "playing"
+        player.lives = 7
+        player.x = game_start_zone.x
+        player.y = game_start_zone.y
+        spawn_enemies_from_map()
+    elseif btnp(5) then -- X - volver al menú
+        game_state = "menu"
+        player.lives = 7
+        roombas = {}
+    end
+end
+
 function _update()
+    if game_state == "menu" then
+        update_menu()
+    elseif game_state == "playing" then
+        update_playing()
+    elseif game_state == "game_over" then
+        update_game_over()
+    end
+end
+
+-- Funcion para actualizar el juego
+function update_playing()
     -- Movimiento del jugador
     if btn(0) then -- izquierda
         player.dx = -move_speed
