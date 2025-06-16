@@ -43,12 +43,12 @@ rat_move_speed = 0.5
 rat_spawn_sprites = {34, 35, 36}
 initial_rat_positions = {}
 
--- Variables de los murciれたlagos
+-- Variables de los murcielagos
 bats = {}
 bat_speed = 1
 bat_spawn_sprite = 39
 initial_bat_positions = {}
-bat_return_distance = 80  -- 10 bloques * 8 pれとxeles = 80 pれとxeles
+bat_return_distance = 80  -- 10 bloques * 8 pixeles = 80 pixeles
 
 -- Variables de movimiento
 gravity = 0.3
@@ -949,7 +949,7 @@ function update_playing()
         manage_damage()
     end
 
-    -- Verificar colision con murciれたlagos
+    -- Verificar colision con murcielagos
     if check_player_bat_collision() then
         manage_damage()
     end
