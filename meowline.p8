@@ -43,6 +43,13 @@ rat_move_speed = 0.5
 rat_spawn_sprites = {34, 35, 36}
 initial_rat_positions = {}
 
+-- Variables de los murciれたlagos
+bats = {}
+bat_speed = 1
+bat_spawn_sprite = 39
+initial_bat_positions = {}
+bat_return_distance = 80  -- 10 bloques * 8 pれとxeles = 80 pれとxeles
+
 -- Variables de movimiento
 gravity = 0.3
 jump_power = -5
@@ -265,6 +272,16 @@ function check_player_rat_collision()
     return false
 end
 
+function check_player_bat_collision()
+    for bat in all(bats) do
+        if player.x + player.w > bat.x and player.x < bat.x + bat.w and
+           player.y + player.h > bat.y and player.y < bat.y + bat.h then
+            return true
+        end
+    end
+    return false
+end
+
 -- Funcion que detecta cualquier sprite donde las roombas se pueden parar
 function check_roomba_ground_collision(x, y, w, h)
     x = flr(x)
@@ -418,7 +435,19 @@ function spawn_enemies_from_map()
         end
     end
 
-    -- Crear roombas desde las posiciones guardadas
+    if #initial_bat_positions == 0 then
+        for mx = 0, 126 do
+            for my = 0, 31 do
+                if mget(mx, my) == bat_spawn_sprite then
+                    add(initial_bat_positions, {x = mx * 8, y = my * 8})
+                    mset(mx, my, 0)
+                    mset(mx + 1, my, 0)
+                end
+            end
+        end
+    end
+
+    -- Crear enemigos desde las posiciones guardadas
     for pos in all(initial_roomba_positions) do
         local new_roomba = {
             x = pos.x,
@@ -449,6 +478,24 @@ function spawn_enemies_from_map()
             anim_speed = 10
         }
         add(rats, new_rat)
+    end
+
+    for pos in all(initial_bat_positions) do
+        local new_bat = {
+            x = pos.x,
+            y = pos.y,
+            spawn_x = pos.x,  -- Posicion inicial para volver
+            spawn_y = pos.y,  -- Posicion inicial para volver
+            dx = 0,
+            dy = 0,
+            w = 16,
+            h = 8,
+            state = "idle", -- Estados: "idle", "attacking", "returning"
+            anim_frame = 0,
+            anim_timer = 0,
+            anim_speed = 15
+        }
+        add(bats, new_bat)
     end
 end
 
@@ -522,6 +569,7 @@ function _draw()
     draw_doors()
     draw_roombas()
     draw_rats()
+    draw_bats()
 
     local cam_x = mid(0, player.x - 64, 1024 - 128)
     local cam_y = player.y - 64
@@ -649,6 +697,28 @@ function draw_rats()
     end
 end
 
+function draw_bats()
+    for bat in all(bats) do
+        local sprite_id
+        
+        if bat.state == "idle" then
+            -- Comportamiento 1: sprite estatico 39-40
+            sprite_id = 39
+        else
+            -- Comportamiento 2 y 3: alternar entre 37-38 y 53-54
+            if bat.anim_frame == 0 then
+                sprite_id = 37  -- Sprites 37-38
+            else
+                sprite_id = 53  -- Sprites 53-54
+            end
+        end
+        
+        local flip_x = bat.dx < 0
+        
+        spr(sprite_id, bat.x, bat.y, 2, 1, flip_x)
+    end
+end
+
 -- Funcion para dibujar los checkpoints y su animacion
 function draw_checkpoints()
     -- Dibujar todos los checkpoints normales
@@ -744,6 +814,17 @@ function update_playing()
                     rat.dx = -abs(rat.dx)  -- Ir hacia la izquierda
                 else
                     rat.dx = abs(rat.dx)   -- Ir hacia la derecha
+                end
+            end
+        end
+
+        for bat in all(bats) do
+            if bat.state == "idle" then
+                local distance = sqrt((bat.x + bat.w/2 - player.x - player.w/2)^2 + 
+                                    (bat.y + bat.h/2 - player.y - player.h/2)^2)
+                
+                if distance <= meow_radius then
+                    bat.state = "attacking"
                 end
             end
         end
@@ -868,6 +949,11 @@ function update_playing()
         manage_damage()
     end
 
+    -- Verificar colision con murciれたlagos
+    if check_player_bat_collision() then
+        manage_damage()
+    end
+
     -- Limites del mapa
     if player.x < 0 then player.x = 0 end
     if player.x + player.w > 1024 then player.x = 1024 - player.w end
@@ -876,6 +962,7 @@ function update_playing()
     -- Actualizar todos los enemigos
     update_roombas()
     update_rats()
+    update_bats()
     update_animated_blocks()
 end
 
@@ -979,6 +1066,83 @@ function update_rats()
     end
 end
 
+function update_bats()
+    for bat in all(bats) do
+        -- Manejo de la animacion
+        bat.anim_timer += 1
+        if bat.anim_timer >= bat.anim_speed then
+            bat.anim_timer = 0
+            bat.anim_frame = (bat.anim_frame + 1) % 2
+        end
+
+        if bat.state == "idle" then
+            -- Comportamiento 1: Quieto, solo flotando
+            bat.dx = 0
+            bat.dy = 0
+            
+        elseif bat.state == "attacking" then
+            -- Comportamiento 2: Perseguir al jugador
+            
+            -- Calcular direccion hacia el jugador
+            local target_x = player.x + player.w/2
+            local target_y = player.y + player.h/2
+            local bat_center_x = bat.x + bat.w/2
+            local bat_center_y = bat.y + bat.h/2
+            
+            local distance_to_player = sqrt((target_x - bat_center_x)^2 + (target_y - bat_center_y)^2)
+            local distance_to_spawn = sqrt((bat.spawn_x - bat.x)^2 + (bat.spawn_y - bat.y)^2)
+            
+            -- Si esta muy lejos del spawn, volver
+            if distance_to_spawn > bat_return_distance then
+                bat.state = "returning"
+            else
+                -- Moverse hacia el jugador
+                if distance_to_player > 0 then
+                    bat.dx = ((target_x - bat_center_x) / distance_to_player) * bat_speed
+                    bat.dy = ((target_y - bat_center_y) / distance_to_player) * bat_speed
+                end
+            end
+            
+        elseif bat.state == "returning" then
+            -- Comportamiento 3: Volver al spawn
+            -- Volver al spawn
+            local bat_center_x = bat.x + bat.w/2
+            local bat_center_y = bat.y + bat.h/2
+            local distance_to_spawn = sqrt((bat.spawn_x - bat_center_x)^2 + (bat.spawn_y - bat_center_y)^2)
+            
+            if distance_to_spawn < 8 then -- Cerca del spawn
+                bat.state = "idle"
+                bat.x = bat.spawn_x
+                bat.y = bat.spawn_y
+                bat.dx = 0
+                bat.dy = 0
+            else
+                -- Moverse hacia el spawn
+                bat.dx = ((bat.spawn_x - bat_center_x) / distance_to_spawn) * bat_speed
+                bat.dy = ((bat.spawn_y - bat_center_y) / distance_to_spawn) * bat_speed
+            end
+        end
+
+        -- Aplicar movimiento con verificacion de colision con bloques solidos
+        local new_x = bat.x + bat.dx
+        local new_y = bat.y + bat.dy
+        
+        -- Verificar colision horizontal
+        if not check_solid_collision(new_x, bat.y, bat.w, bat.h) then
+            bat.x = new_x
+        else
+            bat.dx = 0 -- Detener movimiento horizontal si hay colision
+        end
+        
+        -- Verificar colision vertical
+        if not check_solid_collision(bat.x, new_y, bat.w, bat.h) then
+            bat.y = new_y
+        else
+            bat.dy = 0 -- Detener movimiento vertical si hay colision
+        end
+    end
+end
+
 function update_animated_blocks()
 
     -- Bloque de agua
@@ -1010,7 +1174,7 @@ function update_menu()
     player.is_walking = false
     
     -- Solo responder al boton de salto para empezar
-    if btnp(4) then -- Tecla Z
+    if btnp(4) then -- Z button
         game_state = "playing"
         player.x = game_start_zone.x
         player.y = game_start_zone.y
@@ -1182,8 +1346,8 @@ f0fffff88fffff0f0008800007777770444444444ffff3f400000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 14141414141414141414141414141414242424242424242424242424242424241414141414141414141414141414141400000000000000000000000000000000
 __map__
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000484848484848484800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
