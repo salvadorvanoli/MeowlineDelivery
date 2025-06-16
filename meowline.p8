@@ -397,7 +397,7 @@ function _init()
     find_animated_blocks()
 end
 
--- Funcion para escanear el mapa y crear enemigos (por ahora solo roombas)
+-- Funcion para escanear el mapa y crear enemigos
 function spawn_enemies_from_map()
     -- Limpiar arrays existentes
     roombas = {} 
@@ -500,10 +500,10 @@ function spawn_enemies_from_map()
 end
 
 function spawn_checkpoints_from_map()
-    checkpoints = {} -- limpiar array existente
+    checkpoints = {} -- Limpiar array existente
     
     -- Escanear todo el mapa buscando checkpoints
-    for mx = 0, 126 do -- 126 porque el checkpoint es de 2 sprites de ancho
+    for mx = 0, 126 do
         for my = 0, 31 do
             if mget(mx, my) == checkpoint_sprite then
                 -- Crear nuevo checkpoint en esta posicion
@@ -521,8 +521,8 @@ function spawn_checkpoints_from_map()
 end
 
 function spawn_doors_from_map()
-    doors = {} -- limpiar array existente
-    target_score = 0  -- resetear contador
+    doors = {} -- Limpiar array existente
+    target_score = 0  -- Resetear contador
     
     -- Escanear todo el mapa buscando puertas
     for mx = 0, 126 do
@@ -544,7 +544,7 @@ function spawn_doors_from_map()
 end
 
 function find_animated_blocks()
-    animated_blocks = {} -- limpiar array existente
+    animated_blocks = {} -- Limpiar array existente
     
     -- Escanear todo el mapa buscando bloques de agua (sprite 69)
     for mx = 0, 127 do
@@ -564,7 +564,7 @@ function _draw()
 
     map(0, 0, 0, 0, 128, 128)
 
-    -- Dibujar checkpoints y puertas antes de la camara, ya que sino estos dan la ilusion de moverse
+    -- Dibujar entidades antes que la cámara, ya que sino dan la ilusión de moverse erráticamente
     draw_checkpoints()
     draw_doors()
     draw_roombas()
@@ -635,7 +635,6 @@ function _draw()
 
         -- Mostrar puntuacion durante el juego
         print("packages: " .. score .. "/" .. target_score, cam_x + 2, cam_y + 12, 7)
-
 
         -- Mostrar indicaciones de interaccion con la tecla "X"
         local door_below = check_player_over_door()
@@ -1155,9 +1154,9 @@ function update_animated_blocks()
         for block in all(animated_blocks) do
             local current_sprite = mget(block.x, block.y)
             if current_sprite == 69 then
-                mset(block.x, block.y, 70)  -- Cambiar a frame 2
+                mset(block.x, block.y, 70) -- Cambiar a frame 2
             elseif current_sprite == 70 then
-                mset(block.x, block.y, 69)  -- Cambiar a frame 1
+                mset(block.x, block.y, 69) -- Cambiar a frame 1
             end
         end
     end
