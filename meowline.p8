@@ -34,15 +34,25 @@ victory_zone = {x = 320, y = 448}
 -- Enemigos roombas
 roombas = {}
 roomba_move_speed = 1
-
--- Sprite que se convierte en roomba en el mapa
 roomba_spawn_sprite = 32
 initial_roomba_positions = {}
+
+-- Variables de las ratas
+rats = {}
+rat_move_speed = 0.5
+rat_spawn_sprite = 34
+initial_rat_positions = {}
 
 -- Variables de movimiento
 gravity = 0.3
 jump_power = -5
 move_speed = 2
+
+-- Sistema de maullido
+meow_active = false
+meow_timer = 0
+meow_duration = 30  -- Duracion del maullido en frames
+meow_radius = 64    -- Radio de 8 bloques (8 * 8 = 64 pixeles)
 
 -- Indice del sprite solido (suelo)
 platform_sprites = { 64 } -- Bloques de plataforma (solo solidos desde arriba)
@@ -238,6 +248,16 @@ function check_player_roomba_side_collision()
     return false
 end
 
+function check_player_rat_collision()
+    for rat in all(rats) do
+        if player.x + player.w > rat.x and player.x < rat.x + rat.w and
+           player.y + player.h > rat.y and player.y < rat.y + rat.h then
+            return true
+        end
+    end
+    return false
+end
+
 -- Funcion que detecta cualquier sprite donde las roombas se pueden parar
 function check_roomba_ground_collision(x, y, w, h)
     x = flr(x)
@@ -253,6 +273,29 @@ function check_roomba_ground_collision(x, y, w, h)
             local sprite_id = mget(cx, cy)
             -- Las roombas pueden pararse en plataformas, bloques solidos Y bloques daninos
             if is_platform_sprite(sprite_id) or is_solid_sprite(sprite_id) or is_damage_sprite(sprite_id) then
+                return true, cy * 8
+            end
+        end
+    end
+
+    return false
+end
+
+function check_rat_ground_collision(x, y, w, h)
+    x = flr(x)
+    y = flr(y)
+    
+    local start_cx = flr(x / 8)
+    local end_cx = flr((x + w - 1) / 8)
+    local start_cy = flr(y / 8)
+    local end_cy = flr((y + h - 1) / 8)
+
+    for cx = start_cx, end_cx do
+        for cy = start_cy, end_cy do
+            local sprite_id = mget(cx, cy)
+            -- Las ratas pueden pararse en plataformas y bloques solidos
+            -- Pero NO en bloques daninos (a menos que esten asustadas)
+            if is_platform_sprite(sprite_id) or is_solid_sprite(sprite_id) then
                 return true, cy * 8
             end
         end
@@ -331,8 +374,10 @@ end
 
 -- Funcion para escanear el mapa y crear enemigos (por ahora solo roombas)
 function spawn_enemies_from_map()
-    roombas = {} -- limpiar array existente
-    
+    -- Limpiar arrays existentes
+    roombas = {} 
+    rats = {}
+
     -- Si es la primera vez, escanear el mapa y guardar posiciones
     if #initial_roomba_positions == 0 then
         for mx = 0, 127 do
@@ -340,6 +385,19 @@ function spawn_enemies_from_map()
                 if mget(mx, my) == roomba_spawn_sprite then
                     add(initial_roomba_positions, {x = mx * 8, y = my * 8})
                     mset(mx, my, 0) -- Eliminar del mapa solo la primera vez
+                end
+            end
+        end
+    end
+
+    if #initial_rat_positions == 0 then
+        for mx = 0, 125 do  -- 125 porque la rata es de 3 sprites de ancho
+            for my = 0, 31 do
+                if mget(mx, my) == rat_spawn_sprite then
+                    add(initial_rat_positions, {x = mx * 8, y = my * 8})
+                    mset(mx, my, 0)     -- Eliminar sprite 34
+                    mset(mx + 1, my, 0) -- Eliminar sprite 35
+                    mset(mx + 2, my, 0) -- Eliminar sprite 36
                 end
             end
         end
@@ -359,6 +417,22 @@ function spawn_enemies_from_map()
             anim_speed = 5
         }
         add(roombas, new_roomba)
+    end
+
+    for pos in all(initial_rat_positions) do
+        local new_rat = {
+            x = pos.x,
+            y = pos.y,
+            dx = rat_move_speed,
+            w = 24,  -- 3 sprites de ancho
+            h = 8,   -- 1 sprite de alto
+            grounded = false,
+            scared = false,  -- Si esta asustada
+            anim_frame = 0,
+            anim_timer = 0,
+            anim_speed = 10
+        }
+        add(rats, new_rat)
     end
 end
 
@@ -418,6 +492,7 @@ function _draw()
     draw_checkpoints()
     draw_doors()
     draw_roombas()
+    draw_rats()
 
     local cam_x = mid(0, player.x - 64, 1024 - 128)
     local cam_y = player.y - 64
@@ -425,7 +500,9 @@ function _draw()
 
     if game_state == "playing" then
         local sprite_id
-        if not player.grounded then
+        if meow_active then
+            sprite_id = 12 -- Sprite del maullido
+        elseif not player.grounded then
             if player.dy < 0 then
                 sprite_id = 8  -- Sprite para cuando esta subiendo
             else
@@ -503,6 +580,22 @@ function draw_roombas()
     end
 end
 
+function draw_rats()
+    for rat in all(rats) do
+        local sprite_id
+        if rat.anim_frame == 0 then
+            sprite_id = 34  -- Sprites 34-35-36
+        else
+            sprite_id = 50  -- Sprites 50-51-52
+        end
+        
+        -- Determinar si el sprite debe estar espejado
+        local flip_x = rat.dx > 0  -- Si se mueve hacia la derecha, espejar
+        
+        spr(sprite_id, rat.x, rat.y, 3, 1, flip_x)
+    end
+end
+
 -- Funcion para dibujar los checkpoints y su animacion
 function draw_checkpoints()
     -- Dibujar todos los checkpoints normales
@@ -570,6 +663,37 @@ function update_playing()
         if player.anim_timer >= player.anim_speed then
             player.anim_timer = 0
             player.anim_frame = (player.anim_frame + 1) % 3
+        end
+    end
+    
+    if btnp(2) then -- Tecla direccional arriba
+        -- Activar maullido
+        meow_active = true
+        meow_timer = 0
+        
+        -- Asustar a todas las ratas en el radio
+        for rat in all(rats) do
+            local distance = sqrt((rat.x + rat.w/2 - player.x - player.w/2)^2 + 
+                                (rat.y + rat.h/2 - player.y - player.h/2)^2)
+            
+            if distance <= meow_radius then
+                rat.scared = true
+                -- Cambiar direccion para alejarse del jugador
+                if rat.x + rat.w/2 < player.x + player.w/2 then
+                    rat.dx = -abs(rat.dx)  -- Ir hacia la izquierda
+                else
+                    rat.dx = abs(rat.dx)   -- Ir hacia la derecha
+                end
+            end
+        end
+    end
+
+    -- Actualizar timer del maullido
+    if meow_active then
+        meow_timer += 1
+        if meow_timer >= meow_duration then
+            meow_active = false
+            meow_timer = 0
         end
     end
 
@@ -678,13 +802,19 @@ function update_playing()
         manage_damage()
     end
 
+    -- Verificar colision con ratas
+    if check_player_rat_collision() then
+        manage_damage()
+    end
+
     -- Limites del mapa
     if player.x < 0 then player.x = 0 end
     if player.x + player.w > 1024 then player.x = 1024 - player.w end
     if player.y > 256 then player.y = 256 end
 
-    -- Actualizar todas las roombas
+    -- Actualizar todos los enemigos
     update_roombas()
+    update_rats()
 end
 
 -- Funcion para actualizar las roombas
@@ -731,6 +861,58 @@ function update_roombas()
         -- Cambiar de direccion si hay obstaculo o no hay suelo
         if front_collided or not below_front_collided then
             roomba.dx = -roomba.dx
+        end
+    end
+end
+
+function update_rats()
+    for rat in all(rats) do
+        -- Manejo de la animacion
+        rat.anim_timer += 1
+        if rat.anim_timer >= rat.anim_speed then
+            rat.anim_timer = 0
+            rat.anim_frame = (rat.anim_frame + 1) % 2
+        end
+
+        -- Verificar colision horizontal con bloques solidos
+        local new_x = rat.x + rat.dx
+        if check_solid_collision(new_x, rat.y, rat.w, rat.h) then
+            rat.dx = -rat.dx  -- Cambiar direccion si choca con pared
+        else
+            rat.x = new_x  -- Aplicar movimiento
+        end
+
+        rat.grounded = false
+
+        -- Verificar colision con el suelo
+        local collided, ground_y = check_rat_ground_collision(rat.x, rat.y + rat.h, rat.w, 1)
+        if collided then
+            rat.y = ground_y - rat.h
+            rat.grounded = true
+        else
+            -- Aplicar gravedad si no esta en el suelo
+            rat.y += gravity
+        end
+
+        -- Verificar si pisa bloque danino (solo si no esta asustada)
+        if rat.scared and check_damage_collision(rat.x, rat.y + rat.h - 1, rat.w, 1) then
+            -- La rata muere al pisar bloque danino
+            del(rats, rat)
+        else
+            -- Verificar colision frontal y suelo delante
+            local front_x = rat.x + (rat.dx > 0 and rat.w or -1)
+            local front_y = rat.y + rat.h - 1
+            local front_collided = check_rat_ground_collision(front_x, front_y, 1, 1) or 
+                                 check_solid_collision(front_x, front_y, 1, 1)
+
+            local below_front_x = rat.x + (rat.dx > 0 and rat.w or -1)
+            local below_front_y = rat.y + rat.h + 1
+            local below_front_collided = check_rat_ground_collision(below_front_x, below_front_y, 1, 1)
+
+            -- Cambiar de direccion si hay obstaculo o no hay suelo (solo si no esta asustada)
+            if not rat.scared and (front_collided or not below_front_collided) then
+                rat.dx = -rat.dx
+            end
         end
     end
 end
@@ -789,22 +971,22 @@ function update_victory()
     end
 end
 __gfx__
-00000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000006777600000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000070006373760000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000070000000000000007000600000000000700006767600000007000000000000000700000000000000000000000000000000
-00060060000000000060000000000007006000000000070067776600000000600650555700000060000000000000000700000000000000000000000000000000
-00677760000000006777660000000006677766000000060063737000000000600655666650000600000006060000006000000000000000000000000000000000
-00637370000000076373700000000060637370000000006067676000000000600066766665500600000677760000006000000000000000000000000000000000
-00676760000000066767600000000060676760000000006005557500000000600006666666660600000637370000006000000000000000000000000000000000
-00055560000000600555750000000060055575000000006006777755766666000000666666666500000676760055566000000000000000000000000000000000
-00067766777700600677775576666600067777500007760007776666666666000000005566666550000055575566660000000000000000000000000000000000
-00077766666670600777666666666600077766655677660006766666666666000000000055666050000066666666666000000000000000000000000000000000
-00067666666775000676666666666600067666666666660006666665566666600000000000666600000066666666666000000000000000000000000000000000
-00066666667767000666666556666660066666655666660005560000000050600000000000000660000066666655656000000000000000000000000000000000
-00055660077665000556600000005060005660000000566550600000000506600000000000000060000056665500056000000000000000000000000000000000
-00050060057650000500600000005060000560000000006550600000000506000000000000000000000056000000050000000000000000000000000000000000
-00050060566000000500600000005060000060000000006000000000000000000000000000000000000056000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000011011100000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000006777600000000000000000000000010110000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000070006373760000000000000000000000001100000000000000000000000000000
+00000000000000000000000000000070000000000000007000600000000000700006767600000007000000000000000701000000000000000000000000000000
+00060060000000000060000000000007006000000000070067776600000000600650555700000060000000000000000710060060000000000000000000000000
+00677760000000006777660000000006677766000000060063737000000000600655666650000600000006060000006010677760000000000000000000000000
+00637370000000076373700000000060637370000000006067676000000000600066766665500600000677760000006010637370000000070000000000000000
+00676760000000066767600000000060676760000000006005557500000000600006666666660600000637370000006010676760000000060000000000000000
+00055560000000600555750000000060055575000000006006777755766666000000666666666500000676760055566010055560000000600000000000000000
+00067766777700600677775576666600067777500007760007776666666666000000005566666550000055575566660010055566777700600000000000000000
+00077766666670600777666666666600077766655677660006766666666666000000000055666050000066666666666010077766666670600000000000000000
+00067666666775000676666666666600067666666666660006666665566666600000000000666600000066666666666010067666666775000000000000000000
+00066666667767000666666556666660066666655666660005560000000050600000000000000660000066666655656011066666667767000000000000000000
+00055660077665000556600000005060005660000000566550600000000506600000000000000060000056665500056001055660077665000000000000000000
+00050060057650000500600000005060000560000000006550600000000506000000000000000000000056000000050001050060057650000000000000000000
+00050060566000000500600000005060000060000000006000000000000000000000000000000000000056000000000000150060566000000000000000000000
 00000007700000000000006000000006000000601110000000000111000000011000000000000000000000000000000000000000000000000000000000000000
 0000007447000000000000600000006000000060cc111010010111cc000000111100000000000000000000000000000000000000000000000000000000000000
 0066664884666600000ff006000ff060000ff006c1cc11a11a11cc1c000001111110000000000000000000000000000000000000000000000000000000000000
@@ -926,7 +1108,7 @@ __map__
 4342424242000000000000000000000000000000424200000000000000000000004242000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000040404040400000000000000000004242000000000000000000000000004242000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000041414141410000404040400000420000000000000000000000006000004242000064000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000041414141410000414141410000000000000000000064000000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000041414141410000414141410000000000000000004242420000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0020000041414141410000414141410000000000000000000000000000424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000041414141410000414141410000000000000000000064000000424242424242424242424200002200000000000000000000000042000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000041414141410000414141410000000000000000004242420000424242424242424242424242424242424242424242434343434342000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0020000041414141410000414141410000000000000000000000000000424242424242424242420000000000000000000000424242424200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4040404040404040404343404040404040404040404043434343434343424242424242424242420000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
