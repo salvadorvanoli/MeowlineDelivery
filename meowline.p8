@@ -185,7 +185,7 @@ function check_platform_collision(x, y, w, h)
     for cx = start_cx, end_cx do
         for cy = start_cy, end_cy do
             local sprite_id = mget(cx, cy)
-            if is_platform_sprite(sprite_id) then -- Cambio aqui
+            if is_platform_sprite(sprite_id) then
                 return true, cy * 8
             end
         end
