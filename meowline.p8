@@ -4,7 +4,7 @@ __lua__
 -- variables
 
 -- Activar modo debugging (se ven las hitboxes)
-debugging = false;
+debugging = false
 
 player = {
     x = 64,
@@ -23,13 +23,20 @@ player = {
 }
 
 -- Estados del juego
-game_state = "menu" -- Estados: "menu", "playing", "game_over", "victory"
+game_state = "cinematic" -- Estados: "cinematic", "menu", "playing", "game_over", "victory"
 
 -- Coordenadas de las zonas
-menu_zone = {x = 1, y = 448}
-game_over_zone = {x = 192, y = 448} 
-game_start_zone = {x = 64, y = 80}
-victory_zone = {x = 320, y = 448}
+cinematic_zone = { x = 384, y = 384 } -- Posiciれはn en la cinemれくtica (48*8, 48*8)
+menu_zone = { x = 1, y = 448 }
+game_over_zone = { x = 192, y = 448 }
+game_start_zone = { x = 64, y = 80 }
+victory_zone = { x = 320, y = 448 }
+
+-- Variables para la cinemれくtica
+cinematic_timer = 0
+cinematic_duration = 180 -- 3 segundos a 60 FPS
+cinematic_page = 1 -- Pagina actual de la cinematica
+cinematic_max_pages = 4 -- Total de paginas
 
 -- Enemigos roombas
 roombas = {}
@@ -40,7 +47,7 @@ initial_roomba_positions = {}
 -- Variables de las ratas
 rats = {}
 rat_move_speed = 0.5
-rat_spawn_sprites = {34, 35, 36}
+rat_spawn_sprites = { 34, 35, 36 }
 initial_rat_positions = {}
 
 -- Variables de los murcielagos
@@ -48,7 +55,7 @@ bats = {}
 bat_speed = 1
 bat_spawn_sprite = 39
 initial_bat_positions = {}
-bat_return_distance = 80  -- 10 bloques * 8 pixeles = 80 pixeles
+bat_return_distance = 80 -- 10 bloques * 8 pixeles = 80 pixeles
 
 -- Variables de movimiento
 gravity = 0.3
@@ -58,8 +65,8 @@ move_speed = 2
 -- Sistema de maullido
 meow_active = false
 meow_timer = 0
-meow_duration = 30  -- Duracion del maullido en frames
-meow_radius = 64    -- Radio de 8 bloques (8 * 8 = 64 pixeles)
+meow_duration = 30 -- Duracion del maullido en frames
+meow_radius = 64 -- Radio de 8 bloques (8 * 8 = 64 pixeles)
 
 -- Indice del sprite solido (suelo)
 platform_sprites = { 64, 71 } -- Bloques de plataforma (solo solidos desde arriba)
@@ -89,11 +96,11 @@ checkpoint_animation = {
 
 -- Sistema de paquetes y victoria
 doors = {}
-door_sprite = 100  -- Sprite de puerta (parte inferior)
-door_top_sprite = 84  -- Sprite de puerta (parte superior)
-delivered_sprite = 101  -- Sprite cuando se entrega el paquete
-score = 0  -- Paquetes entregados
-target_score = 0  -- Total de puertas en el mapa
+door_sprite = 100 -- Sprite de puerta (parte inferior)
+door_top_sprite = 84 -- Sprite de puerta (parte superior)
+delivered_sprite = 101 -- Sprite cuando se entrega el paquete
+score = 0 -- Paquetes entregados
+target_score = 0 -- Total de puertas en el mapa
 
 -->8
 -- Funciones de colisiones
@@ -132,7 +139,7 @@ end
 function check_solid_collision(x, y, w, h)
     x = flr(x)
     y = flr(y)
-    
+
     local start_cx = flr(x / 8)
     local end_cx = flr((x + w - 1) / 8)
     local start_cy = flr(y / 8)
@@ -142,7 +149,7 @@ function check_solid_collision(x, y, w, h)
         for cy = start_cy, end_cy do
             local sprite_id = mget(cx, cy)
             if is_solid_sprite(sprite_id) then
-                return true, cx * 8, cy * 8  -- Devolver posicion del bloque
+                return true, cx * 8, cy * 8 -- Devolver posicion del bloque
             end
         end
     end
@@ -154,7 +161,7 @@ end
 function check_damage_collision(x, y, w, h)
     x = flr(x)
     y = flr(y)
-    
+
     local start_cx = flr(x / 8)
     local end_cx = flr((x + w - 1) / 8)
     local start_cy = flr(y / 8)
@@ -176,7 +183,7 @@ end
 function check_platform_collision(x, y, w, h)
     x = flr(x)
     y = flr(y)
-    
+
     local start_cx = flr(x / 8)
     local end_cx = flr((x + w - 1) / 8)
     local start_cy = flr(y / 8)
@@ -200,34 +207,35 @@ function check_ground_collision(x, y, w, h)
     if platform_collided then
         return true, platform_y
     end
-    
+
     -- Verificar bloques solidos
     local solid_collided, _, solid_y = check_solid_collision(x, y, w, h)
     if solid_collided then
         return true, solid_y
     end
-    
+
     return false
 end
 
 function check_player_on_roomba()
     for roomba in all(roombas) do
-        if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4 and -- Permitir un rango de 4 pixeles
-           player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
-           player.dy >= 0 then
+        if player.y + player.h >= roomba.y and player.y + player.h <= roomba.y + 4
+                -- Permitir un rango de 4 pixeles
+                and player.x + player.w > roomba.x and player.x < roomba.x + roomba.w
+                and player.dy >= 0 then
             return true, roomba
         end
     end
-    
+
     return false
 end
 
 function check_player_over_checkpoint()
     for checkpoint in all(checkpoints) do
-        if player.x + player.w > checkpoint.x and 
-           player.x < checkpoint.x + checkpoint.w and
-           player.y + player.h > checkpoint.y and 
-           player.y < checkpoint.y + checkpoint.h then
+        if player.x + player.w > checkpoint.x
+                and player.x < checkpoint.x + checkpoint.w
+                and player.y + player.h > checkpoint.y
+                and player.y < checkpoint.y + checkpoint.h then
             return checkpoint
         end
     end
@@ -236,11 +244,11 @@ end
 
 function check_player_over_door()
     for door in all(doors) do
-        if not door.delivered and
-           player.x + player.w > door.x and 
-           player.x < door.x + door.w and
-           player.y + player.h > door.y and 
-           player.y < door.y + door.h then
+        if not door.delivered
+                and player.x + player.w > door.x
+                and player.x < door.x + door.w
+                and player.y + player.h > door.y
+                and player.y < door.y + door.h then
             return door
         end
     end
@@ -249,9 +257,8 @@ end
 
 function check_player_roomba_side_collision()
     for roomba in all(roombas) do
-        if player.x + player.w > roomba.x and player.x < roomba.x + roomba.w and
-           player.y + player.h > roomba.y and player.y < roomba.y + roomba.h then
-
+        if player.x + player.w > roomba.x and player.x < roomba.x + roomba.w
+                and player.y + player.h > roomba.y and player.y < roomba.y + roomba.h then
             local on_roomba, _ = check_player_on_roomba()
             if not on_roomba then
                 return true
@@ -264,8 +271,8 @@ end
 
 function check_player_rat_collision()
     for rat in all(rats) do
-        if player.x + player.w > rat.x and player.x < rat.x + rat.w and
-           player.y + player.h > rat.y and player.y < rat.y + rat.h then
+        if player.x + player.w > rat.x and player.x < rat.x + rat.w
+                and player.y + player.h > rat.y and player.y < rat.y + rat.h then
             return true
         end
     end
@@ -274,8 +281,8 @@ end
 
 function check_player_bat_collision()
     for bat in all(bats) do
-        if player.x + player.w > bat.x and player.x < bat.x + bat.w and
-           player.y + player.h > bat.y and player.y < bat.y + bat.h then
+        if player.x + player.w > bat.x and player.x < bat.x + bat.w
+                and player.y + player.h > bat.y and player.y < bat.y + bat.h then
             return true
         end
     end
@@ -286,7 +293,7 @@ end
 function check_roomba_ground_collision(x, y, w, h)
     x = flr(x)
     y = flr(y)
-    
+
     local start_cx = flr(x / 8)
     local end_cx = flr((x + w - 1) / 8)
     local start_cy = flr(y / 8)
@@ -308,7 +315,7 @@ end
 function check_rat_ground_collision(x, y, w, h)
     x = flr(x)
     y = flr(y)
-    
+
     local start_cx = flr(x / 8)
     local end_cx = flr((x + w - 1) / 8)
     local start_cy = flr(y / 8)
@@ -341,7 +348,7 @@ end
 
 function manage_damage()
     player.lives -= 1
-    
+
     if player.lives <= 0 then
         game_over()
     else
@@ -374,12 +381,14 @@ end
 function deliver_package(door)
     door.delivered = true
     score += 1
-    
+
     -- Cambiar sprite en el mapa (parte inferior)
     local map_x = door.x / 8
-    local map_y = (door.y + 8) / 8  -- Parte inferior de la puerta
-    mset(map_x, map_y, delivered_sprite)  -- Cambiar sprite 100 a 101
-    
+    local map_y = (door.y + 8) / 8
+    -- Parte inferior de la puerta
+    mset(map_x, map_y, delivered_sprite)
+    -- Cambiar sprite 100 a 101
+
     -- Verificar victoria
     if score >= target_score then
         victory()
@@ -400,7 +409,7 @@ end
 -- Funcion para escanear el mapa y crear enemigos
 function spawn_enemies_from_map()
     -- Limpiar arrays existentes
-    roombas = {} 
+    roombas = {}
     rats = {}
 
     -- Si es la primera vez, escanear el mapa y guardar posiciones
@@ -408,7 +417,7 @@ function spawn_enemies_from_map()
         for mx = 0, 127 do
             for my = 0, 31 do
                 if mget(mx, my) == roomba_spawn_sprite then
-                    add(initial_roomba_positions, {x = mx * 8, y = my * 8})
+                    add(initial_roomba_positions, { x = mx * 8, y = my * 8 })
                     mset(mx, my, 0) -- Eliminar del mapa solo la primera vez
                 end
             end
@@ -422,11 +431,13 @@ function spawn_enemies_from_map()
                 -- Verificar si es alguna de las 3 variantes de rata
                 for i, rat_sprite in ipairs(rat_spawn_sprites) do
                     if sprite_id == rat_sprite then
-                        add(initial_rat_positions, {
-                            x = mx * 8, 
-                            y = my * 8, 
-                            variant = i  -- Guardar que variante es (1, 2, o 3)
-                        })
+                        add(
+                            initial_rat_positions, {
+                                x = mx * 8,
+                                y = my * 8,
+                                variant = i -- Guardar que variante es (1, 2, o 3)
+                            }
+                        )
                         mset(mx, my, 0) -- Eliminar del mapa
                         break
                     end
@@ -439,7 +450,7 @@ function spawn_enemies_from_map()
         for mx = 0, 126 do
             for my = 0, 31 do
                 if mget(mx, my) == bat_spawn_sprite then
-                    add(initial_bat_positions, {x = mx * 8, y = my * 8})
+                    add(initial_bat_positions, { x = mx * 8, y = my * 8 })
                     mset(mx, my, 0)
                     mset(mx + 1, my, 0)
                 end
@@ -484,8 +495,8 @@ function spawn_enemies_from_map()
         local new_bat = {
             x = pos.x,
             y = pos.y,
-            spawn_x = pos.x,  -- Posicion inicial para volver
-            spawn_y = pos.y,  -- Posicion inicial para volver
+            spawn_x = pos.x, -- Posicion inicial para volver
+            spawn_y = pos.y, -- Posicion inicial para volver
             dx = 0,
             dy = 0,
             w = 16,
@@ -500,8 +511,9 @@ function spawn_enemies_from_map()
 end
 
 function spawn_checkpoints_from_map()
-    checkpoints = {} -- Limpiar array existente
-    
+    checkpoints = {}
+    -- Limpiar array existente
+
     -- Escanear todo el mapa buscando checkpoints
     for mx = 0, 126 do
         for my = 0, 31 do
@@ -521,9 +533,11 @@ function spawn_checkpoints_from_map()
 end
 
 function spawn_doors_from_map()
-    doors = {} -- Limpiar array existente
-    target_score = 0  -- Resetear contador
-    
+    doors = {}
+    -- Limpiar array existente
+    target_score = 0
+    -- Resetear contador
+
     -- Escanear todo el mapa buscando puertas
     for mx = 0, 126 do
         for my = 0, 31 do
@@ -537,20 +551,21 @@ function spawn_doors_from_map()
                 }
                 add(doors, new_door)
 
-                target_score += 1  -- Contar total de puertas
+                target_score += 1 -- Contar total de puertas
             end
         end
     end
 end
 
 function find_animated_blocks()
-    animated_blocks = {} -- Limpiar array existente
-    
+    animated_blocks = {}
+    -- Limpiar array existente
+
     -- Escanear todo el mapa buscando bloques de agua (sprite 69)
     for mx = 0, 127 do
         for my = 0, 31 do
             if mget(mx, my) == 69 then
-                add(animated_blocks, {x = mx, y = my, original_sprite = 69})
+                add(animated_blocks, { x = mx, y = my, original_sprite = 69 })
             end
         end
     end
@@ -559,106 +574,154 @@ end
 -->8
 -- Funciones de dibujo
 
+-- Funcion para imprimir texto centrado horizontalmente
+function print_centered(text, y, color)
+    local x = (128 - #text * 4) / 2
+    print(text, x, y, color)
+end
+
 function _draw()
     cls()
 
-    map(0, 0, 0, 0, 128, 128)
+    if game_state == "cinematic" then
+        -- Dibujar solo la zona de la cinemれくtica (48,48) a (63,63)
+        map(48, 48, 0, 0, 16, 16)
 
-    -- Dibujar entidades antes que la cámara, ya que sino dan la ilusión de moverse erráticamente
-    draw_checkpoints()
-    draw_doors()
-    draw_roombas()
-    draw_rats()
-    draw_bats()
+        -- Centrar la cれくmara en la cinemれくtica
+        camera(0, 0)
 
-    local cam_x = mid(0, player.x - 64, 1024 - 128)
-    local cam_y = player.y - 64
-    camera(cam_x, cam_y)
-
-    if game_state == "playing" then
-        local sprite_id
-        if meow_active then
-            sprite_id = 12 -- Sprite del maullido
-        elseif not player.grounded then
-            if player.dy < 0 then
-                sprite_id = 8  -- Sprite para cuando esta subiendo
-            else
-                sprite_id = 10 -- Sprite para cuando esta cayendo
-            end
-        elseif player.is_walking then
-            -- En el suelo y caminando: usar animacion de caminar
-            local walk_sprites = {2, 4, 6}
-            sprite_id = walk_sprites[player.anim_frame + 1]
-        else
-            -- En el suelo y parado: sprite idle
-            sprite_id = 0
-        end
-
-        spr(sprite_id, player.x - 2, player.y, 2, 2, player.der)
-
-        if meow_active then
-            -- Determinar que sprite usar basado en el timer del maullido
-            local front_sprite_id
-            if flr(meow_timer / 8) % 2 == 0 then -- Cambiar cada 8 frames
-                front_sprite_id = 14 -- Sprite 13 (2 de alto, 1 de largo: 13, 29)
-            else
-                front_sprite_id = 15 -- Sprite 14 (2 de alto, 1 de largo: 14, 30)
-            end
+                -- Mostrar texto segun la pagina actual
+        if cinematic_page == 1 then
+            print_centered("en una ciudad abandonada,", 90, 6)
+            print_centered("los humanos se han", 100, 6)
+            print_centered("esfumado...", 110, 6)
             
-            -- Posicionar el sprite enfrente del gato segun su direccion
-            local front_x
-            if player.der then -- Mirando a la derecha
-                front_x = player.x + player.w + 2
-            else -- Mirando a la izquierda
-                front_x = player.x - 10 
-            end
+        elseif cinematic_page == 2 then
+            print_centered("solo quedan las mascotas", 90, 6)
+            print_centered("luchando por sobrevivir", 100, 6)
+            print_centered("en las calles vacias.", 110, 6)
             
-            spr(front_sprite_id, front_x, player.y, 1, 2, player.der)  -- 1 de ancho, 2 de alto
+        elseif cinematic_page == 3 then
+            print_centered("courier cat, un gato", 90, 6)
+            print_centered("callejero rapido y astuto,", 100, 6)
+            print_centered("acepta la mision...", 110, 6)
+            
+        elseif cinematic_page == 4 then
+             print_centered("recorrer las calles", 90, 6)
+            print_centered("peligrosas llevando", 100, 6)
+            print_centered("esperanza entre todos.", 110, 6)
         end
-    end
-    
-    if debugging then
-        -- Dibuja el area de colision de todas las roombas
-        for roomba in all(roombas) do
-            rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
-        end
-
-        -- Dibuja el area de colision del jugador
-        rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
-    end
-
-    if game_state == "playing" then
-        -- Mostrar vidas durante el juego
-        for i = 1, player.lives do
-            spr(98, cam_x + 2 + (i - 1) * 10, cam_y + 2, 1, 1)
-        end
-
-        -- Mostrar puntuacion durante el juego
-        print("packages: " .. score .. "/" .. target_score, cam_x + 2, cam_y + 12, 7)
-
-        -- Mostrar indicaciones de interaccion con la tecla "X"
-        local door_below = check_player_over_door()
-        local checkpoint_below = check_player_over_checkpoint()
         
-        if door_below then
-            print("press x to deliver", cam_x + 30, cam_y + 115, 7)
-        elseif checkpoint_below and not checkpoint_below.activated then
-            print("press x to save", cam_x + 30, cam_y + 115, 7)
+        -- Instrucciones en la parte mas inferior
+        print_centered("x: continuar  z: saltar", 120, 8)
+        
+        -- Indicador de pagina en la esquina superior
+        local page_text = cinematic_page .. "/" .. cinematic_max_pages
+        print(page_text, 2, 2, 5)  -- Esquina superior izquierda
+        
+    else
+        -- Dibujar el mapa normal para otros estados
+
+        map(0, 0, 0, 0, 128, 128)
+
+        -- Dibujar entidades antes que la cれくmara, ya que sino dan la ilusiれはn de moverse errれくticamente
+        draw_checkpoints()
+        draw_doors()
+        draw_roombas()
+        draw_rats()
+        draw_bats()
+
+        local cam_x = mid(0, player.x - 64, 1024 - 128)
+        local cam_y = player.y - 64
+        camera(cam_x, cam_y)
+
+        if game_state == "playing" then
+            local sprite_id
+            if meow_active then
+                sprite_id = 12 -- Sprite del maullido
+            elseif not player.grounded then
+                if player.dy < 0 then
+                    sprite_id = 8 -- Sprite para cuando esta subiendo
+                else
+                    sprite_id = 10 -- Sprite para cuando esta cayendo
+                end
+            elseif player.is_walking then
+                -- En el suelo y caminando: usar animacion de caminar
+                local walk_sprites = { 2, 4, 6 }
+                sprite_id = walk_sprites[player.anim_frame + 1]
+            else
+                -- En el suelo y parado: sprite idle
+                sprite_id = 0
+            end
+
+            spr(sprite_id, player.x - 2, player.y, 2, 2, player.der)
+
+            if meow_active then
+                -- Determinar que sprite usar basado en el timer del maullido
+                local front_sprite_id
+                if flr(meow_timer / 8) % 2 == 0 then
+                    -- Cambiar cada 8 frames
+                    front_sprite_id = 14 -- Sprite 13 (2 de alto, 1 de largo: 13, 29)
+                else
+                    front_sprite_id = 15 -- Sprite 14 (2 de alto, 1 de largo: 14, 30)
+                end
+
+                -- Posicionar el sprite enfrente del gato segun su direccion
+                local front_x
+                if player.der then
+                    -- Mirando a la derecha
+                    front_x = player.x + player.w + 2
+                else
+                    -- Mirando a la izquierda
+                    front_x = player.x - 10
+                end
+
+                spr(front_sprite_id, front_x, player.y, 1, 2, player.der) -- 1 de ancho, 2 de alto
+            end
         end
 
-    elseif game_state == "menu" then
-        -- Texto del menu
-        print("press z to start", cam_x + 32, cam_y + 100, 7)
-    elseif game_state == "game_over" then
-        -- Texto de game over
-        print("press x for menu", cam_x + 32, cam_y + 110, 8)
-    elseif game_state == "victory" then
-        -- Textos de victoria
-        print("congratulations on delivering", cam_x + 5, cam_y + 40, 7)
-        print("all packages!", cam_x + 35, cam_y + 50, 7)
-        print("zoo york and its inhabitants", cam_x + 8, cam_y + 70, 7)
-        print("thank you for your contribution!", cam_x + 2, cam_y + 80, 7)
-        print("press x to return to menu", cam_x + 15, cam_y + 110, 8)
+        if debugging then
+            -- Dibuja el area de colision de todas las roombas
+            for roomba in all(roombas) do
+                rect(roomba.x, roomba.y, roomba.x + roomba.w, roomba.y + roomba.h, 8)
+            end
+
+            -- Dibuja el area de colision del jugador
+            rect(player.x, player.y, player.x + player.w, player.y + player.h, 9)
+        end
+
+        if game_state == "playing" then
+            -- Mostrar vidas durante el juego
+            for i = 1, player.lives do
+                spr(98, cam_x + 2 + (i - 1) * 10, cam_y + 2, 1, 1)
+            end
+
+            -- Mostrar puntuacion durante el juego
+            print("packages: " .. score .. "/" .. target_score, cam_x + 2, cam_y + 12, 7)
+
+            -- Mostrar indicaciones de interaccion con la tecla "X"
+            local door_below = check_player_over_door()
+            local checkpoint_below = check_player_over_checkpoint()
+
+            if door_below then
+                print("press x to deliver", cam_x + 30, cam_y + 115, 7)
+            elseif checkpoint_below and not checkpoint_below.activated then
+                print("press x to save", cam_x + 30, cam_y + 115, 7)
+            end
+        elseif game_state == "menu" then
+            -- Texto del menu
+            print("press z to start", cam_x + 32, cam_y + 100, 7)
+        elseif game_state == "game_over" then
+            -- Texto de game over
+            print("press x for menu", cam_x + 32, cam_y + 110, 8)
+        elseif game_state == "victory" then
+            -- Textos de victoria
+            print("congratulations on delivering", cam_x + 5, cam_y + 40, 7)
+            print("all packages!", cam_x + 35, cam_y + 50, 7)
+            print("zoo york and its inhabitants", cam_x + 8, cam_y + 70, 7)
+            print("thank you for your contribution!", cam_x + 2, cam_y + 80, 7)
+            print("press x to return to menu", cam_x + 15, cam_y + 110, 8)
+        end
     end
 end
 
@@ -667,11 +730,11 @@ function draw_roombas()
     for roomba in all(roombas) do
         local sprite_id
         if roomba.anim_frame == 0 then
-            sprite_id = 32  -- Sprites 32-33
+            sprite_id = 32 -- Sprites 32-33
         else
-            sprite_id = 48  -- Sprites 48-49
+            sprite_id = 48 -- Sprites 48-49
         end
-        
+
         spr(sprite_id, roomba.x, roomba.y, 2, 1)
     end
 end
@@ -679,7 +742,7 @@ end
 function draw_rats()
     for rat in all(rats) do
         local sprite_id
-        
+
         -- Determinar el sprite basado en la variante y frame de animaciれはn
         if rat.anim_frame == 0 then
             -- Frame 1: sprites 34, 35, 36
@@ -688,10 +751,10 @@ function draw_rats()
             -- Frame 2: sprites 50, 51, 52
             sprite_id = rat_spawn_sprites[rat.variant] + 16 -- 34+16=50, 35+16=51, 36+16=52
         end
-        
+
         -- Determinar si el sprite debe estar espejado
-        local flip_x = rat.dx > 0  -- Si se mueve hacia la derecha, espejar
-        
+        local flip_x = rat.dx > 0 -- Si se mueve hacia la derecha, espejar
+
         spr(sprite_id, rat.x, rat.y, 1, 1, flip_x)
     end
 end
@@ -699,21 +762,21 @@ end
 function draw_bats()
     for bat in all(bats) do
         local sprite_id
-        
+
         if bat.state == "idle" then
             -- Comportamiento 1: sprite estatico 39-40
             sprite_id = 39
         else
             -- Comportamiento 2 y 3: alternar entre 37-38 y 53-54
             if bat.anim_frame == 0 then
-                sprite_id = 37  -- Sprites 37-38
+                sprite_id = 37 -- Sprites 37-38
             else
-                sprite_id = 53  -- Sprites 53-54
+                sprite_id = 53 -- Sprites 53-54
             end
         end
-        
+
         local flip_x = bat.dx < 0
-        
+
         spr(sprite_id, bat.x, bat.y, 2, 1, flip_x)
     end
 end
@@ -724,10 +787,10 @@ function draw_checkpoints()
     for checkpoint in all(checkpoints) do
         spr(96, checkpoint.x, checkpoint.y, 2, 1)
     end
-    
+
     -- Dibujar animacion si esta activa
     if checkpoint_animation.active then
-        local anim_sprites = {80, 82}
+        local anim_sprites = { 80, 82 }
         local current_sprite = anim_sprites[checkpoint_animation.frame + 1]
         spr(current_sprite, checkpoint_animation.x, checkpoint_animation.y, 2, 1)
     end
@@ -752,7 +815,9 @@ end
 -- Funciones de actualizacion
 
 function _update()
-    if game_state == "menu" then
+    if game_state == "cinematic" then
+        update_cinematic()
+    elseif game_state == "menu" then
         update_menu()
     elseif game_state == "playing" then
         update_playing()
@@ -765,14 +830,15 @@ end
 
 -- Funcion para actualizar el juego
 function update_playing()
-
     if not meow_active then
         -- Movimiento del jugador
-        if btn(0) then -- izquierda
+        if btn(0) then
+            -- izquierda
             player.dx = -move_speed
             player.der = false
             player.is_walking = true
-        elseif btn(1) then -- derecha
+        elseif btn(1) then
+            -- derecha
             player.dx = move_speed
             player.der = true
             player.is_walking = true
@@ -795,33 +861,34 @@ function update_playing()
             player.anim_frame = (player.anim_frame + 1) % 3
         end
     end
-    
-    if btnp(2) and player.grounded then -- Tecla direccional arriba
+
+    if btnp(2) and player.grounded then
+        -- Tecla direccional arriba
         -- Activar maullido
         meow_active = true
         meow_timer = 0
-        
+
         -- Asustar a todas las ratas en el radio
         for rat in all(rats) do
-            local distance = sqrt((rat.x + rat.w/2 - player.x - player.w/2)^2 + 
-                                (rat.y + rat.h/2 - player.y - player.h/2)^2)
-            
+            local distance = sqrt((rat.x + rat.w / 2 - player.x - player.w / 2) ^ 2
+                    + (rat.y + rat.h / 2 - player.y - player.h / 2) ^ 2)
+
             if distance <= meow_radius then
                 rat.scared = true
                 -- Cambiar direccion para alejarse del jugador
-                if rat.x + rat.w/2 < player.x + player.w/2 then
-                    rat.dx = -abs(rat.dx)  -- Ir hacia la izquierda
+                if rat.x + rat.w / 2 < player.x + player.w / 2 then
+                    rat.dx = -abs(rat.dx) -- Ir hacia la izquierda
                 else
-                    rat.dx = abs(rat.dx)   -- Ir hacia la derecha
+                    rat.dx = abs(rat.dx) -- Ir hacia la derecha
                 end
             end
         end
 
         for bat in all(bats) do
             if bat.state == "idle" then
-                local distance = sqrt((bat.x + bat.w/2 - player.x - player.w/2)^2 + 
-                                    (bat.y + bat.h/2 - player.y - player.h/2)^2)
-                
+                local distance = sqrt((bat.x + bat.w / 2 - player.x - player.w / 2) ^ 2
+                        + (bat.y + bat.h / 2 - player.y - player.h / 2) ^ 2)
+
                 if distance <= meow_radius then
                     bat.state = "attacking"
                 end
@@ -845,18 +912,19 @@ function update_playing()
     end
 
     -- Revisar interacciones del mapa
-    if btnp(5) then -- X button
+    if btnp(5) then
+        -- X button
         local checkpoint_below = check_player_over_checkpoint()
         if checkpoint_below and not checkpoint_below.activated then
             -- Activar el checkpoint (ganar vida y guardar posicion)
             checkpoint_below.activated = true
             current_checkpoint = checkpoint_below
-            player.lives += 1  -- Ganar 1 vida extra
-            
+            player.lives += 1 -- Ganar 1 vida extra
+
             -- Activar animacion sobre el checkpoint
             checkpoint_animation.active = true
             checkpoint_animation.x = checkpoint_below.x
-            checkpoint_animation.y = checkpoint_below.y - 8  -- 8 poxeles arriba del checkpoint
+            checkpoint_animation.y = checkpoint_below.y - 8 -- 8 poxeles arriba del checkpoint
             checkpoint_animation.frame = 0
             checkpoint_animation.timer = 0
         end
@@ -872,7 +940,7 @@ function update_playing()
         checkpoint_animation.timer += 1
         if checkpoint_animation.timer >= checkpoint_animation.speed then
             checkpoint_animation.timer = 0
-            checkpoint_animation.frame = (checkpoint_animation.frame + 1) % 2  -- Alterna entre 0 y 1
+            checkpoint_animation.frame = (checkpoint_animation.frame + 1) % 2 -- Alterna entre 0 y 1
         end
     end
 
@@ -892,18 +960,18 @@ function update_playing()
         player.grounded = true
         player.y = current_roomba.y - player.h
         player.dy = 0
-        
+
         local potential_new_x = player.x + current_roomba.dx
-        
+
         local horizontal_collision = check_solid_collision(potential_new_x, player.y, player.w, player.h)
-        
+
         -- El jugador puede moverse con la roomba sin problemas, no hay bloques solidos delante
         if not horizontal_collision then
             player.x += current_roomba.dx
-        
-        -- El jugador tiene un bloque solido delante, no puede atravesarlo, pero puede saltar
+
+            -- El jugador tiene un bloque solido delante, no puede atravesarlo, pero puede saltar
         elseif horizontal_collision then
-                player.grounded = true
+            player.grounded = true
         end
     else
         local new_y = player.y + player.dy
@@ -914,13 +982,14 @@ function update_playing()
                 -- Ajustar posicion para estar justo encima del bloque
                 local _, _, block_y = check_solid_collision(player.x, new_y, player.w, player.h)
                 player.y = block_y - player.h
-            else  -- Subiendo (golpeo el techo)
+            else
+                -- Subiendo (golpeo el techo)
                 player.dy = 0
                 local _, _, block_y = check_solid_collision(player.x, new_y, player.w, player.h)
-                player.y = block_y + 8  -- Posicionar debajo del bloque
+                player.y = block_y + 8 -- Posicionar debajo del bloque
             end
         else
-            player.y = new_y  -- Aplicar movimiento vertical
+            player.y = new_y -- Aplicar movimiento vertical
 
             -- Verificar colision con el suelo (plataformas y solidos)
             player.grounded = false
@@ -972,15 +1041,15 @@ function update_roombas()
         roomba.anim_timer += 1
         if roomba.anim_timer >= roomba.anim_speed then
             roomba.anim_timer = 0
-            roomba.anim_frame = (roomba.anim_frame + 1) % 2  -- Alterna entre 0 y 1
+            roomba.anim_frame = (roomba.anim_frame + 1) % 2 -- Alterna entre 0 y 1
         end
 
         -- Verificar colision horizontal con bloques solidos
         local new_x = roomba.x + roomba.dx
         if check_solid_collision(new_x, roomba.y, roomba.w, roomba.h) then
-            roomba.dx = -roomba.dx  -- Cambiar direccion
+            roomba.dx = -roomba.dx -- Cambiar direccion
         else
-            roomba.x = new_x  -- Aplicar movimiento
+            roomba.x = new_x -- Aplicar movimiento
         end
 
         roomba.grounded = false
@@ -998,8 +1067,8 @@ function update_roombas()
         -- Verificar colision frontal
         local front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
         local front_y = roomba.y + roomba.h - 1
-        local front_collided = check_roomba_ground_collision(front_x, front_y, 1, 1) or 
-                             check_solid_collision(front_x, front_y, 1, 1)
+        local front_collided = check_roomba_ground_collision(front_x, front_y, 1, 1)
+                or check_solid_collision(front_x, front_y, 1, 1)
 
         -- Verificar si hay suelo delante
         local below_front_x = roomba.x + (roomba.dx > 0 and roomba.w or -1)
@@ -1025,9 +1094,9 @@ function update_rats()
         -- Verificar colision horizontal con bloques solidos
         local new_x = rat.x + rat.dx
         if check_solid_collision(new_x, rat.y, rat.w, rat.h) then
-            rat.dx = -rat.dx  -- Cambiar direccion si choca con pared
+            rat.dx = -rat.dx -- Cambiar direccion si choca con pared
         else
-            rat.x = new_x  -- Aplicar movimiento
+            rat.x = new_x -- Aplicar movimiento
         end
 
         rat.grounded = false
@@ -1050,8 +1119,8 @@ function update_rats()
             -- Verificar colision frontal y suelo delante
             local front_x = rat.x + (rat.dx > 0 and rat.w or -1)
             local front_y = rat.y + rat.h - 1
-            local front_collided = check_rat_ground_collision(front_x, front_y, 1, 1) or 
-                                 check_solid_collision(front_x, front_y, 1, 1)
+            local front_collided = check_rat_ground_collision(front_x, front_y, 1, 1)
+                    or check_solid_collision(front_x, front_y, 1, 1)
 
             local below_front_x = rat.x + (rat.dx > 0 and rat.w or -1)
             local below_front_y = rat.y + rat.h + 1
@@ -1078,19 +1147,18 @@ function update_bats()
             -- Comportamiento 1: Quieto, solo flotando
             bat.dx = 0
             bat.dy = 0
-            
         elseif bat.state == "attacking" then
             -- Comportamiento 2: Perseguir al jugador
-            
+
             -- Calcular direccion hacia el jugador
-            local target_x = player.x + player.w/2
-            local target_y = player.y + player.h/2
-            local bat_center_x = bat.x + bat.w/2
-            local bat_center_y = bat.y + bat.h/2
-            
-            local distance_to_player = sqrt((target_x - bat_center_x)^2 + (target_y - bat_center_y)^2)
-            local distance_to_spawn = sqrt((bat.spawn_x - bat.x)^2 + (bat.spawn_y - bat.y)^2)
-            
+            local target_x = player.x + player.w / 2
+            local target_y = player.y + player.h / 2
+            local bat_center_x = bat.x + bat.w / 2
+            local bat_center_y = bat.y + bat.h / 2
+
+            local distance_to_player = sqrt((target_x - bat_center_x) ^ 2 + (target_y - bat_center_y) ^ 2)
+            local distance_to_spawn = sqrt((bat.spawn_x - bat.x) ^ 2 + (bat.spawn_y - bat.y) ^ 2)
+
             -- Si esta muy lejos del spawn, volver
             if distance_to_spawn > bat_return_distance then
                 bat.state = "returning"
@@ -1101,15 +1169,15 @@ function update_bats()
                     bat.dy = ((target_y - bat_center_y) / distance_to_player) * bat_speed
                 end
             end
-            
         elseif bat.state == "returning" then
             -- Comportamiento 3: Volver al spawn
             -- Volver al spawn
-            local bat_center_x = bat.x + bat.w/2
-            local bat_center_y = bat.y + bat.h/2
-            local distance_to_spawn = sqrt((bat.spawn_x - bat_center_x)^2 + (bat.spawn_y - bat_center_y)^2)
-            
-            if distance_to_spawn < 8 then -- Cerca del spawn
+            local bat_center_x = bat.x + bat.w / 2
+            local bat_center_y = bat.y + bat.h / 2
+            local distance_to_spawn = sqrt((bat.spawn_x - bat_center_x) ^ 2 + (bat.spawn_y - bat_center_y) ^ 2)
+
+            if distance_to_spawn < 8 then
+                -- Cerca del spawn
                 bat.state = "idle"
                 bat.x = bat.spawn_x
                 bat.y = bat.spawn_y
@@ -1125,14 +1193,14 @@ function update_bats()
         -- Aplicar movimiento con verificacion de colision con bloques solidos
         local new_x = bat.x + bat.dx
         local new_y = bat.y + bat.dy
-        
+
         -- Verificar colision horizontal
         if not check_solid_collision(new_x, bat.y, bat.w, bat.h) then
             bat.x = new_x
         else
             bat.dx = 0 -- Detener movimiento horizontal si hay colision
         end
-        
+
         -- Verificar colision vertical
         if not check_solid_collision(bat.x, new_y, bat.w, bat.h) then
             bat.y = new_y
@@ -1143,13 +1211,12 @@ function update_bats()
 end
 
 function update_animated_blocks()
-
     -- Bloque de agua
     block_timer += 1
-    
+
     if block_timer >= block_animation_speed then
         block_timer = 0
-        
+
         -- Alternar entre sprites 69 y 70 para todos los bloques de agua
         for block in all(animated_blocks) do
             local current_sprite = mget(block.x, block.y)
@@ -1162,6 +1229,37 @@ function update_animated_blocks()
     end
 end
 
+-- Funciれはn para actualizar el estado de cinemれくtica
+function update_cinematic()
+    -- Posicionar jugador en la zona de cinemれくtica (opcional, si quieres mostrar al gato)
+    player.x = cinematic_zone.x
+    player.y = cinematic_zone.y
+    player.dx = 0
+    player.dy = 0
+    player.grounded = true
+    player.is_walking = false
+
+    -- Incrementar timer
+    cinematic_timer += 1
+
+  -- Avanzar pagina con X
+    if btnp(5) then -- X button
+        cinematic_page += 1
+        if cinematic_page > cinematic_max_pages then
+            game_state = "menu"
+            cinematic_timer = 0
+            cinematic_page = 1 -- Reset para la proxima vez
+        end
+    end
+    
+    -- Saltar cinematica completamente con Z
+    if btnp(4) then -- Z button
+        game_state = "menu"
+        cinematic_timer = 0
+        cinematic_page = 1 -- Reset para la proxima vez
+    end
+end
+
 -- Funcion para actualizar el estado de menu
 function update_menu()
     -- Posicionar jugador en la zona del menu
@@ -1171,9 +1269,10 @@ function update_menu()
     player.dy = 0
     player.grounded = true
     player.is_walking = false
-    
+
     -- Solo responder al boton de salto para empezar
-    if btnp(4) then -- Z button
+    if btnp(4) then
+        -- Z button
         game_state = "playing"
         player.x = game_start_zone.x
         player.y = game_start_zone.y
@@ -1195,9 +1294,11 @@ function update_game_over()
     player.dy = 0
     player.grounded = true
     player.is_walking = false
-    
-    if btnp(5) then -- X - volver al menu
+
+    if btnp(5) then
+        -- X - volver al menu
         game_state = "menu"
+        cinematic_timer = 0 -- Reset cinematic timer
     end
 end
 
@@ -1210,12 +1311,14 @@ function update_victory()
     player.dy = 0
     player.grounded = true
     player.is_walking = false
-    
+
     -- Solo responder al boton X para volver al menu
     if btnp(5) then
         game_state = "menu"
+        cinematic_timer = 0 -- Reset cinematic timer
     end
 end
+
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000001100000000ddd
 0000000000000000000000000000000000000000000000000000000000000000000677760000000000000000000000000000000000000000001100010000ddd0
@@ -1281,53 +1384,53 @@ f0fffff88fffff0f0008800007777770444444444ffff3f400000000000000000000000000000000
 00700707007007707077070707070000777770070707070770770070000000000000000000000000000000000000000000000000000000000000000000000000
 07000777770770070707077000777700777077770707770777700770000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000fff00f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0020000000000000000000002000000000000ff00000001000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000100000000000000000000000000ff0002000000000020000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000100000000000f00000000ff000f0000f0000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000100000000000000000000ff01f0f20000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000f0000000001110000100000000f0000fff000f000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000111100000000000000ffffff00001000200001000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000020001111100000000000000ffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000010101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00100000000000010101000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000011111000100000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000011100011111001110000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000010100010101001010001110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00111000010100111111001010001100200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11111000111100111111111110011100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11001011111111111101111110111100000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11001011111101111111111010111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11001010001111101111111111110101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11001010101111111111111111111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11111010191111111110111110110101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11111010111111011100111111110101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11110010111111001100011111110111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11011d10101111000000011111111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11011110dd01110003003011d1111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+01011110dd01440000000011d1111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000111000d0155500000011dd1111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000110000d0055500000111dd1111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1000000000d000000001111111111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000dd00000001ddddd1111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0111111dddd00d0dd00dddddddd11100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000111dddd0dd00dd00ddd111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000011111111111111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+14141414141414141414141414141414242424242424242424242424242424241414141414141414141414141414141400005900000000590000580000000068
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000005900580000590000000059000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+14000000000000000000000000000014240000000000000000000000000000240000000000071727370000000000000059000000000068000068005900005900
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+14000000000000000000000000000014240000000000000000000000000000240000000000000047576700000000000000005900590000005800000068005900
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+14000000000717273700000000000014240000000007172737000000000000240000000000000000000000000000000068004900006859182838480000000049
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+14000000000000475767000000000014240000000000004757670000000000240000000000000000000000000000000000000000000009192939590068000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1400000000000000000000000000001424000000000000000000000000000024000000000000000000000000000000000000590068000a1a2a3a000000005900
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14141414141414141414141414141414242424242424242424242424242424241414141414141414141414141414141400000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000000000000000000014240000000000000000000000000000240000000000071727370000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000000000000000000014240000000000000000000000000000240000000000000047576700000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000717273700000000000014240000000007172737000000000000240000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000475767000000000014240000000000004757670000000000240000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-14000000000000051500000000000014240000000000003600000000000000240000000000000000000000000000000000000000000000000000000000000000
+1400000000000005150000000000001424000000000000360000000000000024000000000000000000000000000000005900000000000b1b2b3b000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 14000000000000061600000000000014240000000000000616000000000000240000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
