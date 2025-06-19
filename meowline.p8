@@ -26,13 +26,13 @@ player = {
 game_state = "cinematic" -- Estados: "cinematic", "menu", "playing", "game_over", "victory"
 
 -- Coordenadas de las zonas
-cinematic_zone = { x = 384, y = 384 } -- Posiciれはn en la cinemれくtica (48*8, 48*8)
+cinematic_zone = { x = 384, y = 384 } -- Posicion en la cinematica (48*8, 48*8)
 menu_zone = { x = 1, y = 448 }
 game_over_zone = { x = 192, y = 448 }
 game_start_zone = { x = 64, y = 80 }
 victory_zone = { x = 320, y = 448 }
 
--- Variables para la cinemれくtica
+-- Variables para la cinematica
 cinematic_timer = 0
 cinematic_duration = 180 -- 3 segundos a 60 FPS
 cinematic_page = 1 -- Pagina actual de la cinematica
@@ -581,7 +581,7 @@ function print_centered(text, y, color)
     print(text, x, y, color)
 end
 
--- Función para imprimir texto centrado horizontalmente con cámara
+-- Funcion para imprimir texto centrado horizontalmente con camara
 function print_centered_cam(text, cam_x, y, color)
     local x = cam_x + (128 - #text * 4) / 2
     print(text, x, y, color)
@@ -599,10 +599,10 @@ function _draw()
             map(64, 48, 0, 0, 16, 16)
         end
 
-        -- Centrar la cれくmara en la cinemれくtica
+        -- Centrar la camara en la cinematica
         camera(0, 0)
 
-                -- Mostrar texto segun la pagina actual
+        -- Mostrar texto segun la pagina actual
         if cinematic_page == 1 then
             print_centered("en una ciudad abandonada,", 90, 6)
             print_centered("los humanos se han", 100, 6)
@@ -634,9 +634,13 @@ function _draw()
     else
         -- Dibujar el mapa normal para otros estados
 
-        map(0, 0, 0, 0, 128, 128)
+        if game_state == "playing" then
+            map(0, 0, 0, 0, 128, 31)  -- Solo hasta fila 30 durante el juego
+        else
+            map(0, 0, 0, 0, 128, 128) -- Mapa completo en menus
+        end
 
-        -- Dibujar entidades antes que la cれくmara, ya que sino dan la ilusiれはn de moverse errれくticamente
+        -- Dibujar entidades antes que la camara, ya que sino dan la ilusion de moverse erraticamente
         draw_checkpoints()
         draw_doors()
         draw_roombas()
@@ -644,7 +648,15 @@ function _draw()
         draw_bats()
 
         local cam_x = mid(0, player.x - 64, 1024 - 128)
-        local cam_y = player.y - 64
+        local cam_y
+
+        -- Aplicar limites de camara solo durante el juego
+        if game_state == "playing" then
+            cam_y = mid(0, player.y - 64, (30 * 8) - 128)  -- Limitado a 30 bloques durante el juego
+        else
+            cam_y = player.y - 64  -- Sin limite en menús/cinematicas
+        end
+
         camera(cam_x, cam_y)
 
         if game_state == "playing" then
@@ -767,7 +779,7 @@ function draw_rats()
     for rat in all(rats) do
         local sprite_id
 
-        -- Determinar el sprite basado en la variante y frame de animaciれはn
+        -- Determinar el sprite basado en la variante y frame de animacion
         if rat.anim_frame == 0 then
             -- Frame 1: sprites 34, 35, 36
             sprite_id = rat_spawn_sprites[rat.variant]
@@ -1049,7 +1061,7 @@ function update_playing()
     -- Limites del mapa
     if player.x < 0 then player.x = 0 end
     if player.x + player.w > 1024 then player.x = 1024 - player.w end
-    if player.y > 256 then player.y = 256 end
+    if player.y > (30 * 8) then player.y = (30 * 8) end
 
     -- Actualizar todos los enemigos
     update_roombas()
@@ -1253,9 +1265,9 @@ function update_animated_blocks()
     end
 end
 
--- Funciれはn para actualizar el estado de cinemれくtica
+-- Funcion para actualizar el estado de cinematica
 function update_cinematic()
-    -- Posicionar jugador en la zona de cinemれくtica (opcional, si quieres mostrar al gato)
+    -- Posicionar jugador en la zona de cinematica (opcional, si quieres mostrar al gato)
     player.x = cinematic_zone.x
     player.y = cinematic_zone.y
     player.dx = 0
@@ -1502,5 +1514,5 @@ __map__
 4444444444444444444444444444444444444444444444444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4747474747474747474747444444444444444444444444444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 4444444444444444444444444444444444444444444444444444444444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4444442223244444444444444444444444444444444444444747474444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-4848484848484848484545484848484848484848484848484545454848484848484848484848480000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4444442223244444000000004444444444444444444444444747474444444444444444444444440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4848484848484848000000004848484848484848484848484545454848484848484848484848480000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
