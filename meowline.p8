@@ -411,6 +411,7 @@ function spawn_enemies_from_map()
     -- Limpiar arrays existentes
     roombas = {}
     rats = {}
+    bats = {}
 
     -- Si es la primera vez, escanear el mapa y guardar posiciones
     if #initial_roomba_positions == 0 then
