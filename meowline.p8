@@ -747,11 +747,11 @@ function find_animated_blocks()
 end
 
 function initialize_background_map()
-    -- Inicializar todo con fondo vacれとo
+    -- Inicializar todo con fondo vacio
     for x = 0, 127 do
         background_map[x] = {}
         for y = 0, 31 do
-            background_map[x][y] = 0 -- Sprite vacれとo por defecto
+            background_map[x][y] = 0 -- Sprite vacio por defecto
         end
     end
     
