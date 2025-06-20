@@ -121,6 +121,16 @@ checkpoint_animation = {
     speed = 15
 }
 
+-- Animación de muerte
+death_animation = {
+    active = false,
+    x = 0,
+    y = 0,
+    dy = -1, -- Velocidad de subida
+    timer = 0,
+    duration = 30 -- 1 segundo
+}
+
 -- Sistema de paquetes y victoria
 doors = {}
 door_sprite = 100 -- Sprite de puerta (parte inferior)
@@ -460,17 +470,16 @@ function manage_damage()
     if player.lives <= 0 then
         game_over()
     else
-        -- Reiniciar en checkpoint si hay uno activo, sino en posicion normal
-        if current_checkpoint then
-            player.x = current_checkpoint.x
-            player.y = current_checkpoint.y - player.h
-        else
-            player.x = game_start_zone.x
-            player.y = game_start_zone.y
-        end
+        -- Activar animacion de muerte
+        death_animation.active = true
+        death_animation.x = player.x + player.w / 2 - 4  -- Centrar sprite 99 (8x8)
+        death_animation.y = player.y + player.h / 2 - 4  -- Centrar verticalmente
+        death_animation.timer = 0
+        
+        -- Detener movimiento del jugador durante la animacion
         player.dx = 0
         player.dy = 0
-        player.grounded = false
+        player.is_walking = false
     end
 end
 
@@ -904,7 +913,9 @@ function _draw()
                 sprite_id = 0
             end
 
-            spr(sprite_id, player.x - 2, player.y, 2, 2, player.der)
+            if not death_animation.active then
+                spr(sprite_id, player.x - 2, player.y, 2, 2, player.der)
+            end
 
             if meow_active then
                 -- Determinar que sprite usar basado en el timer del maullido
@@ -994,6 +1005,10 @@ function _draw()
             print_centered_cam("x: continuar  z: menu", cam_x, cam_y + 120, 8)
 
          end
+    end
+
+    if death_animation.active then
+        spr(99, death_animation.x, death_animation.y, 1, 1)
     end
 end
 
@@ -1102,6 +1117,32 @@ end
 
 -- Funcion para actualizar el juego
 function update_playing()
+
+    if death_animation.active then
+        death_animation.timer += 1
+        death_animation.y += death_animation.dy  -- Mover hacia arriba
+        
+        -- Si la animacion termino (despues de 1 segundo)
+        if death_animation.timer >= death_animation.duration then
+            death_animation.active = false
+            
+            -- Se teleporta al checkpoint
+            if current_checkpoint then
+                player.x = current_checkpoint.x
+                player.y = current_checkpoint.y - player.h
+            else
+                player.x = game_start_zone.x
+                player.y = game_start_zone.y
+            end
+            player.dx = 0
+            player.dy = 0
+            player.grounded = false
+        end
+        
+        -- Durante la animacion, no procesar controles del jugador
+        return
+    end
+
     if not meow_active then
         -- Movimiento del jugador
         if btn(0) then
