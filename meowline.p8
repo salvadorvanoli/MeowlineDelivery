@@ -454,7 +454,7 @@ end
 
 function manage_damage()
     player.lives -= 1
-    sfx(10)
+    sfx(11)
 
     if player.lives <= 0 then
         game_over()
