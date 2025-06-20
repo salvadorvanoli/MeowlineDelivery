@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
--- variables cambieee
+-- variables cambieeesss
 
 -- Activar modo debugging (se ven las hitboxes)
 debugging = false
@@ -48,6 +48,7 @@ roombas = {}
 roomba_move_speed = 1
 roomba_spawn_sprite = 32
 initial_roomba_positions = {}
+roomba_hum_playing = false
 
 -- Variables de las ratas
 rats = {}
@@ -485,6 +486,7 @@ function victory()
 end
 
 function deliver_package(door)
+    sfx(5)
     door.delivered = true
     score += 1
 
@@ -1128,9 +1130,9 @@ function update_playing()
             player.anim_timer = 0
             player.anim_frame = (player.anim_frame + 1) % 3
 
-           -- Reproducir solo en frames específicos y si está en el suelo
+           -- Reproducir solo en frames especれとficos y si estれく en el suelo
             if player.grounded and player.anim_frame % 2 == 0 then
-                sfx(0)  -- Canal 0
+                sfx(9)  -- Canal 0
             end
         end
     end
@@ -1182,7 +1184,7 @@ function update_playing()
     if btnp(4) and player.grounded and not meow_active then
         player.dy = jump_power
         player.grounded = false
-        sfx(1)
+        sfx(12)
     end
 
     -- Revisar interacciones del mapa
@@ -1195,6 +1197,8 @@ function update_playing()
             checkpoint_below.activated = true
             current_checkpoint = checkpoint_below
             player.lives += 1 -- Ganar 1 vida extra
+
+            sfx(4)
 
             -- Activar animacion sobre el checkpoint
             checkpoint_animation.active = true
@@ -1327,6 +1331,31 @@ function update_playing()
     update_rats()
     update_bats()
     update_animated_blocks()
+
+    local roomba_near = false
+for roomba in all(roombas) do
+    local px = player.x + player.w/2
+    local py = player.y + player.h/2
+    local rx = roomba.x + roomba.w/2
+    local ry = roomba.y + roomba.h/2
+    local dist = sqrt((px - rx)^2 + (py - ry)^2)
+    if dist < 16 then
+        roomba_near = true
+        break
+    end
+end
+
+if roomba_near then
+    if not roomba_hum_playing then
+        sfx(6, 2)
+        roomba_hum_playing = true
+    end
+else
+    if roomba_hum_playing then
+        sfx(-1, 2)
+        roomba_hum_playing = false
+    end
+end
 end
 
 -- Funcion para actualizar las roombas
@@ -1526,6 +1555,12 @@ end
 
 -- Funcion para actualizar el estado de cinematica
 function update_cinematic()
+
+    if not cinematic_music_playing then
+        music(0)
+        cinematic_music_playing = true
+    end
+
     -- Posicionar jugador en la zona de cinematica (opcional, si quieres mostrar al gato)
     player.x = cinematic_zone.x
     player.y = cinematic_zone.y
@@ -1539,8 +1574,10 @@ function update_cinematic()
 
   -- Avanzar pagina con X
     if btnp(5) then -- X button
+        sfx(2)
         cinematic_page += 1
         if cinematic_page > cinematic_max_pages then
+            music(-1)
             game_state = "menu"
             cinematic_timer = 0
             cinematic_page = 1 -- Reset para la proxima vez
@@ -1549,6 +1586,9 @@ function update_cinematic()
     
     -- Saltar cinematica completamente con Z
     if btnp(4) then -- Z button
+        sfx(3)
+        music(-1)
+
         game_state = "menu"
         cinematic_timer = 0
         cinematic_page = 1 -- Reset para la proxima vez
@@ -1568,6 +1608,7 @@ function update_menu()
     -- Solo responder al boton de salto para empezar
     if btnp(4) then
         -- Z button
+        sfx(3)
         game_state = "playing"
         player.x = game_start_zone.x
         player.y = game_start_zone.y
@@ -1576,6 +1617,8 @@ function update_menu()
         score = 0
         checkpoint_animation.active = false
         block_timer = 0
+        roomba_hum_playing = false -- RESETEAR SONIDO
+        sfx(-1, 2)
         _init()
     end
 end
@@ -1912,3 +1955,20 @@ __map__
 424f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f42434300007b0000412041642041004c4d416441410041412041414141000000007b0066000000007b000000006e5f5f5f644444000000000000000000000000002223000000000000007b00000000005f5f41644141000000000000000000000000000000006620005f5f5f5f5f
 424f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f424e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4e4b454545453f5f5f5f5f5f5f5f5f5f5f5f5f5f5f4545455f5f5f5f5f4545455f5f5f5f5f5f5f5f5f5f5f5f5f5f5f454545454545454545454545454545455f5f5f5f5f5f5f5f
 4949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949494949
+__sfx__
+11100c0018775187251c7751c7251f7751f72524775247251f7751f7251c7751c72518700187001c7001c7001f7001f70024700247001f7001f7001c7001c70018700187001c7001c7001f7001f7002470024700
+11100c0018775187251d7751d7252077520725247752472520775207251d7751d72518700187001c7001c7001f7001f70024700247001f7001f7001c7001c70018700187001c7001c7001f7001f7002470024700
+010200002151526525005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500
+010300003051534515044050440610406044050000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+01070000247542b73432714267542d73434714287542f734367142a75431734387143972039711397123971500700007000070000700007000070000700007000070000700007000070000700007000070000700
+01060000247742476124751247412b7742b7413277432761327513274232735000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+011300000074000730007200073000740007300072000730007400073000720007300074000730007200073000740007300072000730007400073000720007300074000730007200073000740007300072000730
+11100c0018775187251c7751c7251f7751f72524775247251f7751f7251c7751c72518700187001c7001c7001f7001f70024700247001f7001f7001c7001c70018700187001c7001c7001f7001f7002470024700
+01c000001883018830189301893018830188301893018930188301883018930189301883018830189301893014830148300f8300f83011930119300c9300c93013930139300e9300e9300e8300e8300e93013830
+010100000c16515003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+69c000001c5241f524205241d5241f5241f52524524245251c5241f524205241d5241f5241f525245242652427524245242b5242b5252e514295242c5242c5251c504185241a52422524215241e5241f5241f525
+011000001c1431c1331c1231c1131b1031a1030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010200000471005721067310c74110751077510070000700007001970000700007000070000700007000070000700007000070000700007000070000700007000070000700007000070000700007000070000700
+__music__
+00 080a4344
+
