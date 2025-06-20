@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
--- variables
+-- variables cambieee
 
 -- Activar modo debugging (se ven las hitboxes)
 debugging = false
@@ -453,6 +453,7 @@ end
 
 function manage_damage()
     player.lives -= 1
+    sfx(10)
 
     if player.lives <= 0 then
         game_over()
@@ -514,6 +515,7 @@ function _init()
     spawn_buttons_from_map()
     spawn_signs_from_map()
     find_animated_blocks()
+    player.walk_sound_timer = 0
 end
 
 -- Funcion para escanear el mapa y crear enemigos
@@ -1112,6 +1114,7 @@ function update_playing()
             player.is_walking = false
             player.anim_frame = 0
         end
+        
     else
         -- Si el maullido esta activo, no se puede mover
         player.dx = 0
@@ -1124,6 +1127,11 @@ function update_playing()
         if player.anim_timer >= player.anim_speed then
             player.anim_timer = 0
             player.anim_frame = (player.anim_frame + 1) % 3
+
+           -- Reproducir solo en frames específicos y si está en el suelo
+            if player.grounded and player.anim_frame % 2 == 0 then
+                sfx(0)  -- Canal 0
+            end
         end
     end
 
@@ -1174,6 +1182,7 @@ function update_playing()
     if btnp(4) and player.grounded and not meow_active then
         player.dy = jump_power
         player.grounded = false
+        sfx(1)
     end
 
     -- Revisar interacciones del mapa
