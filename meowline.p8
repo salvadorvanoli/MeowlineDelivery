@@ -761,11 +761,12 @@ function spawn_signs_from_map()
 end
 
 function find_animated_blocks()
+    animated_blocks = {} -- Limpiar array existente
 
     -- Escanear todo el mapa buscando bloques de agua (sprite 69)
     for mx = 0, 127 do
         for my = 0, 31 do
-            if mget(mx, my) == 69 then
+            if mget(mx, my) == 69 or mget(mx, my) == 70 then
                 add(animated_blocks, { x = mx, y = my, original_sprite = 69 })
             end
         end
