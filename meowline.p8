@@ -761,8 +761,6 @@ function spawn_signs_from_map()
 end
 
 function find_animated_blocks()
-    animated_blocks = {}
-    -- Limpiar array existente
 
     -- Escanear todo el mapa buscando bloques de agua (sprite 69)
     for mx = 0, 127 do
