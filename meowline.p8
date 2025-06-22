@@ -77,7 +77,7 @@ meow_timer = 0
 meow_duration = 30 -- Duracion del maullido en frames
 meow_radius = 64 -- Radio de 8 bloques (8 * 8 = 64 pixeles)
 
--- Indice del sprite solido (suelo)
+-- Sistema anterior de bloques (legado, ahora se usan flags)
 platform_sprites = { 64, 94 } -- Bloques de plataforma (solo solidos desde arriba)
 solid_sprites = { 66, 71, 72, 73, 74, 75, 76, 77, 78, 89, 90, 95, 102 } -- Bloques totalmente solidos (desde todos los lados)
 damage_sprites = { 63, 67, 69, 70, 87, 88, 91, 93, 109, 110 } -- Bloques que danan al jugador
@@ -147,32 +147,17 @@ target_score = 0 -- Total de puertas en el mapa
 
 -- Funcion para verificar si un sprite es una plataforma
 function is_platform_sprite(sprite_id)
-    for platform in all(platform_sprites) do
-        if sprite_id == platform then
-            return true
-        end
-    end
-    return false
+    return fget(sprite_id, 0) -- Flag 0 = plataforma
 end
 
 -- Funcion para verificar si un sprite es un bloque solido
 function is_solid_sprite(sprite_id)
-    for solid in all(solid_sprites) do
-        if sprite_id == solid then
-            return true
-        end
-    end
-    return false
+    return fget(sprite_id, 1) -- Flag 1 = sれはlido
 end
 
 -- Funcion para verificar si un sprite es un bloque que dana al jugador
 function is_damage_sprite(sprite_id)
-    for damage in all(damage_sprites) do
-        if sprite_id == damage then
-            return true
-        end
-    end
-    return false
+    return fget(sprite_id, 2) -- Flag 2 = daれねino
 end
 
 -- Funcion para detectar bloques solidos
@@ -947,9 +932,9 @@ function _draw()
                 local front_sprite_id
                 if flr(meow_timer / 8) % 2 == 0 then
                     -- Cambiar cada 8 frames
-                    front_sprite_id = 14 -- Sprite 13 (2 de alto, 1 de largo: 13, 29)
+                    front_sprite_id = 14
                 else
-                    front_sprite_id = 15 -- Sprite 14 (2 de alto, 1 de largo: 14, 30)
+                    front_sprite_id = 15
                 end
 
                 -- Posicionar el sprite enfrente del gato segun su direccion
@@ -962,7 +947,26 @@ function _draw()
                     front_x = player.x - 10
                 end
 
-                spr(front_sprite_id, front_x, player.y, 1, 2, player.der) -- 1 de ancho, 2 de alto
+                -- Calcular el offset Y del maullido igual que el del jugador
+                local meow_y_offset = 0
+                
+                -- Verificar si el jugador esta sobre una roomba
+                local on_roomba, current_roomba = check_player_on_roomba()
+                if on_roomba then
+                    meow_y_offset = 2
+
+                    -- Verificar si esa roomba esta sobre agua (sprites 69 o 70)
+                    local roomba_map_x = flr(current_roomba.x / 8)
+                    local roomba_map_y = flr((current_roomba.y + current_roomba.h) / 8)
+                    local roomba_ground_sprite = mget(roomba_map_x, roomba_map_y)
+                    
+                    -- Si la roomba esta sobre agua, bajar el maullido tambien
+                    if roomba_ground_sprite == 69 or roomba_ground_sprite == 70 then
+                        meow_y_offset = 5
+                    end
+                end
+
+                spr(front_sprite_id, front_x, player.y + meow_y_offset, 1, 2, player.der) -- 1 de ancho, 2 de alto
             end
         end
 
@@ -2092,6 +2096,9 @@ f0fffff88fffff0f0008800007777770444444444ffff3f4d186681dd111111dd111111dfff66f44
 14000000000000000000000000000014240000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 14141414141414141414141414141414242424242424242424242424242424240000000000000000000000000000000000000000000000000000000000000000
+__gff__
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000401000204000404020202020202020200000000000000000404020204000401020000000000000200000000000004040000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 424242424242424242424242424242424242424f4f774f4f4f4d00000000000000000000000000000000000000000000000000000000000000000000000000005f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f4343434343434343434343434343434343435f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f
 4241414141414141414141414141414141414249494949494f4d00000000000000000000000000000000000000000000000000858400000000000000000000005f5f5f444444444444000043435f5f5f0000000043434300434343430000000000005f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f
