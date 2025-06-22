@@ -1215,13 +1215,20 @@ function update_playing()
 
         -- Asustar a todas las ratas en el radio
         for rat in all(rats) do
-            local distance = sqrt((rat.x + rat.w / 2 - player.x - player.w / 2) ^ 2
-                    + (rat.y + rat.h / 2 - player.y - player.h / 2) ^ 2)
+            -- Distancia Manhattan para evitar overflow
+            local rat_center_x = rat.x + rat.w / 2
+            local rat_center_y = rat.y + rat.h / 2
+            local player_center_x = player.x + player.w / 2
+            local player_center_y = player.y + player.h / 2
+            
+            local dx = abs(rat_center_x - player_center_x)
+            local dy = abs(rat_center_y - player_center_y)
+            local distance = dx + dy
 
             if distance <= meow_radius then
                 rat.scared = true
                 -- Cambiar direccion para alejarse del jugador
-                if rat.x + rat.w / 2 < player.x + player.w / 2 then
+                if rat_center_x < player_center_x then
                     rat.dx = -abs(rat.dx) -- Ir hacia la izquierda
                 else
                     rat.dx = abs(rat.dx) -- Ir hacia la derecha
@@ -1564,8 +1571,14 @@ function update_bats()
                 local bat_center_x = bat.x + bat.w / 2
                 local bat_center_y = bat.y + bat.h / 2
 
-                local distance_to_player = sqrt((target_x - bat_center_x) ^ 2 + (target_y - bat_center_y) ^ 2)
-                local distance_to_spawn = sqrt((bat.spawn_x - bat_center_x) ^ 2 + (bat.spawn_y - bat_center_y) ^ 2)
+                -- Distancia Manhattan para evitar overflow
+                local dx_player = abs(target_x - bat_center_x)
+                local dy_player = abs(target_y - bat_center_y)
+                local distance_to_player = dx_player + dy_player
+
+                local dx_spawn = abs(bat.spawn_x - bat_center_x)
+                local dy_spawn = abs(bat.spawn_y - bat_center_y)
+                local distance_to_spawn = dx_spawn + dy_spawn
 
                 -- Si esta muy lejos del spawn, volver
                 if distance_to_spawn > bat_return_distance then
@@ -1598,7 +1611,9 @@ function update_bats()
                 -- Intentar volver normalmente
                 local bat_center_x = bat.x + bat.w / 2
                 local bat_center_y = bat.y + bat.h / 2
-                local distance_to_spawn = sqrt((bat.spawn_x - bat_center_x) ^ 2 + (bat.spawn_y - bat_center_y) ^ 2)
+                local dx_spawn = abs(bat.spawn_x - bat_center_x)
+                local dy_spawn = abs(bat.spawn_y - bat_center_y)
+                local distance_to_spawn = dx_spawn + dy_spawn
 
                 if distance_to_spawn < 8 then
                     -- Cerca del spawn - volver a idle
