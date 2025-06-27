@@ -152,12 +152,12 @@ end
 
 -- Funcion para verificar si un sprite es un bloque solido
 function is_solid_sprite(sprite_id)
-    return fget(sprite_id, 1) -- Flag 1 = sれはlido
+    return fget(sprite_id, 1) -- Flag 1 = solido
 end
 
 -- Funcion para verificar si un sprite es un bloque que dana al jugador
 function is_damage_sprite(sprite_id)
-    return fget(sprite_id, 2) -- Flag 2 = daれねino
+    return fget(sprite_id, 2) -- Flag 2 = danino
 end
 
 -- Funcion para detectar bloques solidos
@@ -881,7 +881,7 @@ function _draw()
         if game_state == "playing" then
             cam_y = mid(0, player.y - 64, (30 * 8) - 128)  -- Limitado a 30 bloques durante el juego
         else
-            cam_y = player.y - 64  -- Sin limite en menれむs/cinematicas
+            cam_y = player.y - 64  -- Sin limite en menus/cinematicas
         end
 
         camera(cam_x, cam_y)
@@ -1167,10 +1167,10 @@ function update_playing()
     -- Coordenada x de la puerta divisoria
     local door_x = 53 * 8
 
-    -- Determinar de quれた lado estれく el jugador
+    -- Determinar de que lado esta el jugador
     local side = player.x < door_x and "left" or "right"
 
-    -- Cambiar mれむsica solo si cambia de lado
+    -- Cambiar musica solo si cambia de lado
     if side != current_music_side then
         if side == "left" then
             music(13)
@@ -1241,7 +1241,7 @@ function update_playing()
             player.anim_timer = 0
             player.anim_frame = (player.anim_frame + 1) % 3
 
-           -- Reproducir solo en frames especれとficos y si esta en el suelo
+           -- Reproducir solo en frames especificos y si esta en el suelo
             if player.grounded and player.anim_frame % 2 == 0 then
                 sfx(9)  -- Canal 0
             end
@@ -1691,7 +1691,7 @@ function update_bats()
             bat.dy = 0 -- Detener movimiento vertical si hay colision
         end
     end
-    -- Manejar el sonido del murciれたlago (fuera del bucle)
+    -- Manejar el sonido del murcielago (fuera del bucle)
     if any_bat_attacking and not bat_sound_playing then
         
         bat_sound_playing = true
